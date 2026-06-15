@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+celery
+redis
+crewai
+openai
+python-dotenv
+pandas
+scikit-learn
+xgboost
+faker
