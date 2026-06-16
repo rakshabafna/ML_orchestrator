@@ -64,7 +64,17 @@ def run_workflow(session_id: str, dataset_prompt: str):
         verbose=True
     )
 
-    result = crew.kickoff()
+    import sys
+    from backend.app.agents.streaming import StreamToRedis
+    
+    streamer = StreamToRedis(session_id)
+    old_stdout = sys.stdout
+    sys.stdout = streamer
+    try:
+        result = crew.kickoff()
+    finally:
+        sys.stdout = old_stdout
+
     return result
 
 if __name__ == "__main__":

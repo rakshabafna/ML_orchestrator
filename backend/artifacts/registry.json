@@ -26,6 +26,33 @@
       "status": "running",
       "created_at": "2026-06-16T12:52:19.574753",
       "updated_at": "2026-06-16T12:58:25.335905"
+    },
+    {
+      "id": "9bca6740-4611-4a3d-93cb-fae671ab23f8",
+      "name": "Exp-9bca67",
+      "objective": "I have uploaded a customer churn dataset. Please read it, clean any missing values or improper formatting, and then train and compare Logistic Regression, Random Forest, and XGBoost models to predict the 'Churn' column based on all the other features. Optimize for the highest accuracy and save the best model.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T13:25:58.132734",
+      "updated_at": "2026-06-16T13:39:18.551420"
+    },
+    {
+      "id": "75d82305-b9e2-4dc3-bb42-6a67400e80c7",
+      "name": "Exp-75d823",
+      "objective": "The classic Iris flower dataset containing sepal length, sepal width, petal length, petal width, and species.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T14:31:52.513019",
+      "updated_at": "2026-06-16T14:34:49.524131"
+    },
+    {
+      "id": "b6d33ba2-f331-4f9e-a6e8-8d17a67147af",
+      "name": "Exp-b6d33b",
+      "objective": "I have attached a customer churn dataset. Please clean any missing values, encode the categorical columns, evaluate multiple models to predict the 'churn' column, and save the best tuned model for me to download.",
+      "metric": "accuracy",
+      "status": "running",
+      "created_at": "2026-06-16T14:39:48.400957",
+      "updated_at": "2026-06-16T14:39:48.401004"
     }
   ],
   "models": []

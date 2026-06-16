@@ -18,7 +18,8 @@ def get_llm(role_name: str, session_id: str):
     
     return LLM(**llm_kwargs)
 
-DATA_ROOT = os.getenv("DATA_ROOT", "/data")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_ROOT = os.getenv("DATA_ROOT", os.path.join(PROJECT_ROOT, "backend", "data"))
 
 def get_raw_data_dir(session_id: str):
     return f"{DATA_ROOT}/{session_id}/raw"

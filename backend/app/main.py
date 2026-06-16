@@ -25,10 +25,7 @@ app.add_middleware(
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-RAW_DATA_DIR = os.path.join(PROJECT_ROOT, "backend", "data", "raw")
-CLEAN_DATA_DIR = os.path.join(PROJECT_ROOT, "backend", "data", "clean")
-ARTIFACTS_DIR = os.path.join(PROJECT_ROOT, "backend", "artifacts")
+from backend.app.agents.roles import get_raw_data_dir, get_clean_data_dir, get_artifacts_dir
 
 from typing import Optional
 
@@ -57,8 +54,9 @@ async def orchestrate(request: OrchestrateRequest):
 @app.post("/api/v1/upload/{session_id}")
 async def upload_custom_dataset(session_id: str, file: UploadFile = File(...)):
     try:
-        os.makedirs(RAW_DATA_DIR, exist_ok=True)
-        file_path = os.path.join(RAW_DATA_DIR, f"dataset_{session_id}.csv")
+        raw_dir = get_raw_data_dir(session_id)
+        os.makedirs(raw_dir, exist_ok=True)
+        file_path = os.path.join(raw_dir, "dataset.csv")
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
@@ -90,9 +88,9 @@ async def stop_execution(session_id: str):
 @app.get("/api/v1/dataset/preview/{session_id}")
 async def preview_dataset(session_id: str, stage: str = "clean"):
     if stage == "raw":
-        file_path = os.path.join(RAW_DATA_DIR, f"dataset_{session_id}.csv")
+        file_path = os.path.join(get_raw_data_dir(session_id), "dataset.csv")
     elif stage == "clean":
-        file_path = os.path.join(CLEAN_DATA_DIR, f"cleaned_dataset_{session_id}.csv")
+        file_path = os.path.join(get_clean_data_dir(session_id), "cleaned_dataset.csv")
     else:
         raise HTTPException(status_code=400, detail="Invalid stage parameter. Must be 'raw' or 'clean'.")
         
@@ -111,21 +109,21 @@ async def preview_dataset(session_id: str, stage: str = "clean"):
 
 @app.get("/api/v1/download/model/{session_id}")
 async def download_model(session_id: str):
-    file_path = os.path.join(ARTIFACTS_DIR, f"model_{session_id}.joblib")
+    file_path = os.path.join(get_artifacts_dir(session_id), "model.joblib")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Model artifact not found.")
-    return FileResponse(path=file_path, filename=f"model_{session_id}.joblib")
+    return FileResponse(path=file_path, filename=f"model.joblib")
 
 @app.get("/api/v1/download/dataset/{session_id}")
 async def download_dataset(session_id: str):
-    file_path = os.path.join(CLEAN_DATA_DIR, f"cleaned_dataset_{session_id}.csv")
+    file_path = os.path.join(get_clean_data_dir(session_id), "cleaned_dataset.csv")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Cleaned dataset not found.")
-    return FileResponse(path=file_path, filename=f"cleaned_dataset_{session_id}.csv")
+    return FileResponse(path=file_path, filename=f"cleaned_dataset.csv")
 
 @app.get("/api/v1/leaderboard/{session_id}")
 async def get_leaderboard(session_id: str):
-    file_path = os.path.join(ARTIFACTS_DIR, f"leaderboard_{session_id}.json")
+    file_path = os.path.join(get_artifacts_dir(session_id), "leaderboard.json")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Leaderboard not found.")
         

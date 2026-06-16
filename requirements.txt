@@ -4,6 +4,12 @@ celery
 redis
 crewai[google-genai]
 openai
+fastapi
+uvicorn
+celery
+redis
+crewai[google-genai]
+openai
 python-dotenv
 pandas
 scikit-learn
