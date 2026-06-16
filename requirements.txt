@@ -2,7 +2,7 @@ fastapi
 uvicorn
 celery
 redis
-crewai
+crewai[google-genai]
 openai
 python-dotenv
 pandas

@@ -1,0 +1,32 @@
+{
+  "experiments": [
+    {
+      "id": "63d13273-345a-4f3a-81cd-9c36642ae1c0",
+      "name": "Exp-63d132",
+      "objective": "I have attached a customer churn dataset. Please train a random forest classifier to predict the 'Churn' column based on all the other features. Optimize for accuracy",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T12:24:00.826844",
+      "updated_at": "2026-06-16T12:24:20.027723"
+    },
+    {
+      "id": "bd077feb-578d-4e41-9967-78c8d3397bc6",
+      "name": "Exp-bd077f",
+      "objective": "I have attached a customer churn dataset. Please train a random forest classifier to predict the 'Churn' column based on all the other features. Optimize for accuracy",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T12:32:27.277122",
+      "updated_at": "2026-06-16T12:44:58.268396"
+    },
+    {
+      "id": "f76bc23c-044f-47cf-908f-525f6b30d4a5",
+      "name": "Exp-f76bc2",
+      "objective": "I have attached a customer churn dataset. Please train a random forest classifier to predict the 'Churn' column based on all the other features. Optimize for accuracy",
+      "metric": "accuracy",
+      "status": "running",
+      "created_at": "2026-06-16T12:52:19.574753",
+      "updated_at": "2026-06-16T12:58:25.335905"
+    }
+  ],
+  "models": []
+}

@@ -1,9 +1,201 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
+// Types for dynamic data
+interface LogEntry {
+  time: string;
+  type: string;
+  msg: string;
+  running?: boolean;
+}
+
+interface LeaderboardModel {
+  rank: number;
+  name: string;
+  trial: string;
+  score: string;
+  top?: boolean;
+}
+
+const PHASES = ["Idle", "Ingestion", "Cleaning", "Feature Eng.", "Training", "Deployment", "Completed"];
 
 export default function HomePage() {
   const [goal, setGoal] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState("Idle");
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardModel[]>([]);
+  const [insights, setInsights] = useState<{label: string, width: string}[]>([]);
+  
+  // Data Integration States
+  const [fileSessionId, setFileSessionId] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showDataPreview, setShowDataPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<{columns: string[], rows: any[]} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll terminal
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  // WebSocket connection for real-time telemetry
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    const ws = new WebSocket(`ws://localhost:8000/api/v1/stream/${sessionId}`);
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "phase") {
+          setCurrentPhase(data.content);
+          if (data.content === "Completed") {
+            setIsExecuting(false);
+            fetchLeaderboard(sessionId);
+            fetchInsights(sessionId);
+          }
+        } else if (data.type === "token") {
+          setLogs(prev => [...prev, {
+            time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+            type: "RUN",
+            msg: data.content
+          }]);
+        }
+      } catch (err) {
+        console.error("Failed to parse WS message", err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [sessionId]);
+
+  const fetchLeaderboard = async (sid: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/leaderboard/${sid}`);
+      if (res.ok) {
+        const data = await res.json();
+        // Format the backend data to match our UI Model interface
+        const formatted = data.map((d: any, i: number) => ({
+          rank: i + 1,
+          name: d.model_name || "Unknown Model",
+          trial: `Trial 00${i+1}`,
+          score: (d.score || 0).toFixed(3),
+          top: i === 0
+        }));
+        setLeaderboard(formatted);
+      }
+    } catch (e) {
+      console.error("Failed to fetch leaderboard", e);
+    }
+  };
+
+  const fetchInsights = async (sid: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/insights/${sid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInsights(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch insights", e);
+    }
+  };
+
+  const handleExecute = async () => {
+    if (!goal.trim() || isExecuting) return;
+    
+    setIsExecuting(true);
+    setLogs([{ time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: "INFO", msg: `Initializing execution for goal: "${goal}"` }]);
+    setCurrentPhase("Ingestion");
+    setLeaderboard([]);
+    setInsights([]);
+    
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/orchestrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          prompt: goal, 
+          target_metric: "accuracy",
+          session_id: fileSessionId || undefined
+        })
+      });
+      const data = await res.json();
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
+    } catch (error) {
+      setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: "WARN", msg: "Failed to connect to orchestrator backend." }]);
+      setIsExecuting(false);
+      setCurrentPhase("Idle");
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const newSessionId = crypto.randomUUID();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/upload/${newSessionId}`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        setFileSessionId(newSessionId);
+        setUploadedFileName(file.name);
+      } else {
+        alert("Failed to upload dataset");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error uploading dataset");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePreviewData = async (stage: "raw" | "clean") => {
+    const sid = sessionId || fileSessionId;
+    if (!sid) return;
+    
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/dataset/preview/${sid}?stage=${stage}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewData(data);
+        setShowDataPreview(true);
+      } else {
+        alert(`Failed to fetch ${stage} data preview. Data might not be ready yet.`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error fetching data preview");
+    }
+  };
+
+  const handleStop = async () => {
+    if (!sessionId || !isExecuting) return;
+    try {
+      await fetch(`http://localhost:8000/api/v1/stop/${sessionId}`, { method: "POST" });
+      setIsExecuting(false);
+      setCurrentPhase("Failed");
+    } catch (e) {
+      console.error("Failed to stop execution", e);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full gap-3 md:gap-4 min-h-0">
@@ -26,15 +218,62 @@ export default function HomePage() {
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-xl font-semibold text-[var(--color-on-background)] placeholder-[var(--color-outline-variant)] h-12"
-                placeholder="e.g., Predict customer churn based on Q3 telemetry data..."
+                placeholder="e.g., Predict customer churn based on the attached dataset..."
                 type="text"
               />
+              <input 
+                type="file" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                accept=".csv"
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isExecuting}
+                className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0 ${uploadedFileName ? "bg-[var(--color-primary-container)] text-[var(--color-primary)]" : "text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-container-high)]"}`}
+                title="Attach Dataset (.csv)"
+              >
+                {isUploading ? (
+                  <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[24px]">attach_file</span>
+                )}
+              </button>
             </div>
-            <button className="bg-[var(--color-primary)] text-[var(--color-on-primary)] px-6 py-3 rounded-xl text-base font-semibold shadow-md hover:bg-[var(--color-surface-tint)] hover:shadow-lg transition-all duration-200 whitespace-nowrap flex items-center gap-2 w-full md:w-auto justify-center">
-              Execute Pipeline
-              <span className="material-symbols-outlined icon-fill">play_arrow</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <button 
+                onClick={handleExecute}
+                disabled={isExecuting || !goal.trim()}
+                className={`${isExecuting ? "bg-[var(--color-surface-container)] text-[var(--color-on-surface-variant)]" : "bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:bg-[var(--color-surface-tint)] hover:shadow-lg"} px-6 py-3 rounded-xl text-base font-semibold shadow-md transition-all duration-200 whitespace-nowrap flex items-center gap-2 w-full sm:w-auto justify-center`}
+              >
+                {isExecuting ? "Executing..." : "Execute Pipeline"}
+                <span className="material-symbols-outlined icon-fill">{isExecuting ? "sync" : "play_arrow"}</span>
+              </button>
+              {isExecuting && (
+                <button
+                  onClick={handleStop}
+                  className="bg-[var(--color-error)] text-[var(--color-on-error)] px-6 py-3 rounded-xl text-base font-semibold shadow-md transition-all duration-200 hover:bg-red-600 whitespace-nowrap flex items-center gap-2 w-full sm:w-auto justify-center"
+                >
+                  Emergency Stop
+                  <span className="material-symbols-outlined">stop_circle</span>
+                </button>
+              )}
+            </div>
           </div>
+          {uploadedFileName && (
+            <div className="mt-4 flex items-center gap-2 justify-center">
+              <div className="flex items-center gap-2 bg-[var(--color-surface-container)]/80 backdrop-blur-sm border border-[var(--color-outline-variant)]/30 px-4 py-2 rounded-full text-[14px] text-[var(--color-on-surface)] shadow-sm">
+                <span className="material-symbols-outlined text-[18px] text-[var(--color-primary)]">description</span>
+                <span className="font-medium truncate max-w-[200px]">{uploadedFileName}</span>
+                <div className="w-px h-4 bg-[var(--color-outline-variant)]/50 mx-1"></div>
+                <button onClick={() => handlePreviewData("raw")} className="text-[var(--color-primary)] hover:text-[var(--color-primary)] hover:underline flex items-center gap-1 font-medium transition-colors">
+                  <span className="material-symbols-outlined text-[16px]">visibility</span>
+                  Preview
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -43,45 +282,62 @@ export default function HomePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-[var(--color-on-background)]">Active Synthesis</h2>
           <div className="flex items-center gap-2 bg-[var(--color-surface-container)] px-3 py-1.5 rounded-full text-[13px] tracking-[0.05em] text-[var(--color-primary)] font-medium">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-primary)] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-primary)]"></span>
-            </span>
-            Running
+            {isExecuting && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-primary)] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-primary)]"></span>
+              </span>
+            )}
+            {currentPhase === "Completed" ? "Completed" : isExecuting ? "Running" : "Idle"}
           </div>
         </div>
         {/* Pipeline Path Visualization */}
         <div className="relative w-full h-24 bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 flex items-center justify-between overflow-hidden">
           <div className="absolute top-1/2 left-12 right-12 h-0.5 bg-[var(--color-outline-variant)]/30 -translate-y-1/2 z-0"></div>
-          <div className="absolute top-1/2 left-12 w-1/2 h-0.5 bg-[var(--color-primary)] -translate-y-1/2 z-0"></div>
+          
+          {/* Progress Bar (Dynamic) */}
+          <div 
+            className="absolute top-1/2 left-12 h-0.5 bg-[var(--color-primary)] -translate-y-1/2 z-0 transition-all duration-1000"
+            style={{ width: `${Math.max(0, (PHASES.indexOf(currentPhase) - 1) * 33.3)}%` }}
+          ></div>
+          
           {/* Nodes */}
           {[
-            { icon: "database", label: "Ingestion", completed: true },
-            { icon: "transform", label: "Feature Eng.", completed: true },
-            { icon: "model_training", label: "Training (45%)", active: true },
-            { icon: "rocket_launch", label: "Deployment", pending: true },
-          ].map((node, i) => (
-            <div key={i} className={`relative z-10 flex flex-col items-center gap-2 ${node.pending ? "opacity-50" : ""}`}>
-              <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md ${
-                  node.completed
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : node.active
-                    ? "bg-[var(--color-surface-container-high)] border-2 border-[var(--color-primary)] text-[var(--color-primary)] animate-pulse"
-                    : "bg-[var(--color-surface-container-low)] border border-[var(--color-outline-variant)] text-[var(--color-outline)]"
-                }`}
-              >
-                <span className="material-symbols-outlined">{node.icon}</span>
+            { icon: "database", label: "Ingestion" },
+            { icon: "transform", label: "Cleaning" },
+            { icon: "psychology", label: "Training" },
+            { icon: "rocket_launch", label: "Deployment" },
+          ].map((node, i) => {
+            const phaseIndex = PHASES.indexOf(node.label === "Cleaning" ? "Cleaning" : node.label === "Ingestion" ? "Ingestion" : node.label === "Training" ? "Training" : "Deployment");
+            const currentPhaseIndex = PHASES.indexOf(currentPhase);
+            
+            const isCompleted = currentPhaseIndex > phaseIndex || currentPhase === "Completed";
+            const isActive = currentPhaseIndex === phaseIndex && currentPhase !== "Completed";
+            const isPending = currentPhaseIndex < phaseIndex;
+
+            return (
+              <div key={i} className={`relative z-10 flex flex-col items-center gap-2 ${isPending ? "opacity-50" : ""}`}>
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md ${
+                    isCompleted
+                      ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                      : isActive
+                      ? "bg-[var(--color-surface-container-high)] border-2 border-[var(--color-primary)] text-[var(--color-primary)] animate-pulse"
+                      : "bg-[var(--color-surface-container-low)] border border-[var(--color-outline-variant)] text-[var(--color-outline)]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">{node.icon}</span>
+                </div>
+                <span
+                  className={`text-[13px] tracking-[0.05em] font-medium ${
+                    isActive ? "text-[var(--color-primary)] font-bold" : isPending ? "text-[var(--color-outline)]" : "text-[var(--color-on-surface)]"
+                  }`}
+                >
+                  {node.label}
+                </span>
               </div>
-              <span
-                className={`text-[13px] tracking-[0.05em] font-medium ${
-                  node.active ? "text-[var(--color-primary)] font-bold" : node.pending ? "text-[var(--color-outline)]" : "text-[var(--color-on-surface)]"
-                }`}
-              >
-                {node.label}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -101,20 +357,15 @@ export default function HomePage() {
             </div>
           </div>
           <div className="p-6 flex-grow overflow-y-auto font-[var(--font-geist)] text-sm text-[var(--color-inverse-on-surface)]/80 leading-relaxed space-y-3">
-            {[
-              { time: "14:02:11", type: "INFO", msg: "Initialized Hyperparameter search space." },
-              { time: "14:02:15", type: "INFO", msg: "Spawning 8 worker nodes for parallel evaluation." },
-              { time: "14:02:45", type: "EVAL", msg: "Trial 001 completed. Validation Loss: 0.241" },
-              { time: "14:03:10", type: "EVAL", msg: "Trial 002 completed. Validation Loss: 0.228", best: true },
-              { time: "14:04:05", type: "WARN", msg: "Trial 003 early stopping triggered. Gradient vanishing detected." },
-              { time: "14:05:12", type: "EVAL", msg: "Trial 004 completed. Validation Loss: 0.195", best: true },
-              { time: "14:06:...", type: "RUN", msg: "Evaluating Trial 005...", running: true },
-            ].map((log, i) => (
+            {logs.length === 0 && !isExecuting && (
+              <div className="text-[var(--color-outline-variant)] text-center mt-10">Awaiting execution command...</div>
+            )}
+            {logs.map((log, i) => (
               <div key={i} className={`flex gap-4 ${log.running ? "animate-pulse" : ""}`}>
                 <span className="text-[var(--color-outline)]">{log.time}</span>
                 <span
                   className={
-                    log.type === "WARN"
+                    log.type === "WARN" || log.type === "ERROR"
                       ? "text-[var(--color-error-container)]"
                       : log.type === "RUN" || log.type === "INFO"
                       ? "text-[var(--color-inverse-primary)]"
@@ -125,10 +376,10 @@ export default function HomePage() {
                 </span>
                 <span>
                   {log.msg}
-                  {log.best && <span className="text-[var(--color-primary-fixed)] ml-2">↑ Best</span>}
                 </span>
               </div>
             ))}
+            <div ref={logsEndRef} />
           </div>
         </div>
 
@@ -138,68 +389,143 @@ export default function HomePage() {
           <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 hidden sm:block">
             <h3 className="text-lg font-semibold text-[var(--color-on-background)] mb-2">Candidate Models</h3>
             <div className="space-y-2">
-              {[
-                { rank: 1, name: "XGBoost Ensemble", trial: "Trial 004", score: "0.942", top: true },
-                { rank: 2, name: "LightGBM", trial: "Trial 002", score: "0.915" },
-                { rank: 3, name: "Random Forest", trial: "Trial 001", score: "0.890" },
-              ].map((model) => (
-                <div
-                  key={model.rank}
-                  className={`flex items-center justify-between p-3 rounded-xl ${
-                    model.top
-                      ? "bg-[var(--color-primary-container)]/10 border border-[var(--color-primary)]/20"
-                      : "hover:bg-[var(--color-surface-container)] transition-colors"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded flex items-center justify-center text-[13px] tracking-[0.05em] font-bold ${
-                        model.top
-                          ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                          : "bg-[var(--color-surface-container-high)] text-[var(--color-on-surface-variant)]"
-                      }`}
-                    >
-                      {model.rank}
-                    </div>
-                    <div>
-                      <div className={`text-base font-semibold ${model.top ? "text-[var(--color-on-background)]" : "text-[var(--color-on-background)]"}`}>
-                        {model.name}
-                      </div>
-                      <div className="text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)]">{model.trial}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-lg font-semibold ${model.top ? "text-[var(--color-primary)]" : "text-[var(--color-on-surface)]"}`}>
-                      {model.score}
-                    </div>
-                    {model.top && <div className="text-[13px] tracking-[0.05em] text-[var(--color-outline)]">F1 Score</div>}
-                  </div>
+              {leaderboard.length === 0 ? (
+                <div className="text-[13px] text-[var(--color-on-surface-variant)] p-4 text-center border border-dashed border-[var(--color-outline-variant)]/50 rounded-xl">
+                  {isExecuting ? "Evaluating candidates..." : "No models evaluated yet."}
                 </div>
-              ))}
+              ) : (
+                leaderboard.map((model) => (
+                  <div
+                    key={model.rank}
+                    className={`flex items-center justify-between p-3 rounded-xl ${
+                      model.top
+                        ? "bg-[var(--color-primary-container)]/10 border border-[var(--color-primary)]/20"
+                        : "hover:bg-[var(--color-surface-container)] transition-colors"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded flex items-center justify-center text-[13px] tracking-[0.05em] font-bold ${
+                          model.top
+                            ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                            : "bg-[var(--color-surface-container-high)] text-[var(--color-on-surface-variant)]"
+                        }`}
+                      >
+                        {model.rank}
+                      </div>
+                      <div>
+                        <div className={`text-base font-semibold text-[var(--color-on-background)]`}>
+                          {model.name}
+                        </div>
+                        <div className="text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)]">{model.trial}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-lg font-semibold ${model.top ? "text-[var(--color-primary)]" : "text-[var(--color-on-surface)]"}`}>
+                        {model.score}
+                      </div>
+                      {model.top && <div className="text-[13px] tracking-[0.05em] text-[var(--color-outline)]">Score</div>}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           {/* Feature Importance Mini-Chart */}
           <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 flex-1 flex flex-col justify-between min-h-[120px]">
             <h3 className="text-sm font-semibold text-[var(--color-on-background)] mb-2">Key Drivers</h3>
             <div className="space-y-2 w-full mt-auto">
-              {[
-                { label: "usage_freq", width: "85%" },
-                { label: "account_age", width: "62%" },
-                { label: "last_login", width: "45%" },
-              ].map((feature) => (
-                <div key={feature.label} className="flex items-center gap-2">
-                  <span className="w-24 text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)] truncate font-[var(--font-geist)]">
-                    {feature.label}
-                  </span>
-                  <div className="flex-grow h-2 bg-[var(--color-surface-container-high)] rounded-full overflow-hidden">
-                    <div className="h-full bg-[var(--color-primary)] rounded-full" style={{ width: feature.width }}></div>
-                  </div>
+              {insights.length === 0 ? (
+                <div className="text-[13px] text-[var(--color-on-surface-variant)] p-2 text-center">
+                  Awaiting feature extraction...
                 </div>
-              ))}
+              ) : (
+                insights.map((feature) => (
+                  <div key={feature.label} className="flex items-center gap-2">
+                    <span className="w-24 text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)] truncate font-[var(--font-geist)]">
+                      {feature.label}
+                    </span>
+                    <div className="flex-grow h-2 bg-[var(--color-surface-container-high)] rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-1000" style={{ width: feature.width }}></div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Download Actions (Appears on Completion) ── */}
+          {currentPhase === "Completed" && sessionId && (
+            <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a 
+                  href={`http://localhost:8000/api/v1/download/model/${sessionId}`}
+                  download
+                  className="flex-1 bg-[var(--color-primary-container)] hover:bg-[var(--color-primary)] text-[var(--color-on-primary-container)] hover:text-[var(--color-on-primary)] px-4 py-3 rounded-xl text-[14px] font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  <span className="material-symbols-outlined text-[18px]">download</span>
+                  Trained Model (.joblib)
+                </a>
+                <a 
+                  href={`http://localhost:8000/api/v1/download/dataset/${sessionId}`}
+                  download
+                  className="flex-1 bg-[var(--color-tertiary-container)] hover:bg-[var(--color-tertiary)] text-[var(--color-on-tertiary-container)] hover:text-[var(--color-on-tertiary)] px-4 py-3 rounded-xl text-[14px] font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  <span className="material-symbols-outlined text-[18px]">table_chart</span>
+                  Cleaned Data (.csv)
+                </a>
+              </div>
+              <button 
+                onClick={() => handlePreviewData("clean")}
+                className="w-full bg-[var(--color-surface-container-high)] hover:bg-[var(--color-outline-variant)] text-[var(--color-on-surface)] px-4 py-2.5 rounded-xl text-[14px] font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">visibility</span>
+                Preview Cleaned Dataset
+              </button>
+            </div>
+          )}
+
+        </div>
+      </section>
+
+      {/* ── Data Preview Modal ── */}
+      {showDataPreview && previewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[var(--color-surface-container-lowest)] border border-[var(--color-outline-variant)]/30 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)]">
+              <h3 className="text-lg font-semibold text-[var(--color-on-background)] flex items-center gap-2">
+                <span className="material-symbols-outlined text-[var(--color-primary)]">table_chart</span>
+                Dataset Preview (Top 10 Rows)
+              </h3>
+              <button onClick={() => setShowDataPreview(false)} className="text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)] p-1 rounded-full hover:bg-[var(--color-surface-container-high)] transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-0 custom-scrollbar bg-[var(--color-surface)]">
+              <table className="w-full text-sm text-left font-[var(--font-geist)]">
+                <thead className="text-[12px] uppercase text-[var(--color-on-surface-variant)] bg-[var(--color-surface-container)] sticky top-0 shadow-sm z-10">
+                  <tr>
+                    {previewData.columns.map((col, idx) => (
+                      <th key={idx} className="px-4 py-3 font-semibold tracking-wider whitespace-nowrap">{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-outline-variant)]/20">
+                  {previewData.rows.map((row, rIdx) => (
+                    <tr key={rIdx} className="hover:bg-[var(--color-surface-container-lowest)]/50 transition-colors">
+                      {previewData.columns.map((col, cIdx) => (
+                        <td key={cIdx} className="px-4 py-3 text-[var(--color-on-surface)] truncate max-w-[200px]" title={String(row[col])}>
+                          {row[col] !== null ? String(row[col]) : <span className="text-[var(--color-outline-variant)] italic">null</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </section>
+      )}
     </div>
   );
 }

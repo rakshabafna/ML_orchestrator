@@ -1,80 +1,32 @@
 "use client";
 
-const experiments = [
-  {
-    id: "EXP-8042",
-    title: "Predict Churn",
-    desc: "Training deep sequence model on Q3 telemetry data to identify high-risk accounts.",
-    status: "Running",
-    statusColor: "bg-[var(--color-surface-container)]",
-    statusTextColor: "text-[var(--color-on-surface)]",
-    metricLabel: "Epoch 42/100 • Val Loss",
-    metricValue: "0.241",
-    metricSuffix: "↓",
-    metricColor: "text-[var(--color-primary)]",
-    timeLabel: "Started",
-    timeValue: "2 hrs ago",
-    isRunning: true,
-    hasGradient: true,
-  },
-  {
-    id: "EXP-8041",
-    title: "Recommendation V2",
-    desc: "Two-tower retrieval model baseline fine-tuning with updated interaction weights.",
-    status: "Completed",
-    statusColor: "bg-[var(--color-surface-container-low)]",
-    statusTextColor: "text-[var(--color-secondary)]",
-    metricLabel: "Primary Metric • Recall@10",
-    metricValue: "84.2",
-    metricSuffix: "%",
-    metricColor: "text-[var(--color-on-surface)]",
-    timeLabel: "Duration",
-    timeValue: "14h 20m",
-  },
-  {
-    id: "EXP-8039",
-    title: "NLP Sentiment Base",
-    desc: "OOM Error during backward pass on node cluster gpu-east-04. Batch size configuration issue.",
-    status: "Failed",
-    statusColor: "bg-[var(--color-error-container)]",
-    statusTextColor: "text-[var(--color-on-error-container)]",
-    isFailed: true,
-    metricLabel: "Exit Code",
-    metricValue: "SIGKILL (137)",
-    metricColor: "text-[var(--color-on-surface)]",
-    timeLabel: "Date",
-    timeValue: "Oct 24",
-  },
-  {
-    id: "EXP-8038",
-    title: "Fraud Detection Ensem...",
-    desc: "Gradient boosting trees with newly engineered transaction velocity features.",
-    status: "Completed",
-    statusColor: "bg-[var(--color-surface-container-low)]",
-    statusTextColor: "text-[var(--color-secondary)]",
-    metricLabel: "Primary Metric • F1 Score",
-    metricValue: "0.912",
-    metricColor: "text-[var(--color-on-surface)]",
-    timeLabel: "Duration",
-    timeValue: "4h 12m",
-  },
-  {
-    id: "EXP-8043",
-    title: "Vision Transformer",
-    desc: "Awaiting dataset validation and cluster allocation approval before automated launch.",
-    status: "Draft",
-    statusColor: "bg-[var(--color-surface-container-highest)]",
-    statusTextColor: "text-[var(--color-tertiary)]",
-    isDraft: true,
-    metricLabel: "Target Metric",
-    metricValue: "mAP > 65%",
-    metricColor: "text-[var(--color-on-surface-variant)]",
-    timeLabel: "Last Edited",
-    timeValue: "Just now",
-  },
-];
+import { useState, useEffect } from "react";
+
+interface Experiment {
+  id: string;
+  name: string;
+  objective: string;
+  metric: string;
+  status: string;
+  created_at: string;
+}
 
 export default function ExperimentsPage() {
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/v1/experiments")
+      .then(res => res.json())
+      .then(data => {
+        setExperiments(data);
+        setLoading(false);
+      })
+      .catch(e => {
+        console.error("Failed to fetch experiments", e);
+        setLoading(false);
+      });
+  }, []);
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ── Page Header ── */}
@@ -120,56 +72,67 @@ export default function ExperimentsPage() {
       </div>
 
       {/* ── Experiment Cards Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 min-h-0 overflow-hidden">
-        {experiments.map((exp) => (
-          <article
-            key={exp.id}
-            className={`bg-[var(--color-surface-container-lowest)] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[220px] relative overflow-hidden ${
-              exp.isDraft ? "opacity-80" : ""
-            } ${exp.isFailed ? "border border-transparent hover:border-[var(--color-error-container)]/50" : ""}`}
-          >
-            {exp.hasGradient && (
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-surface-tint)]"></div>
-            )}
-            <div>
-              <div className="flex justify-between items-start mb-3">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ${exp.statusColor} ${exp.statusTextColor} text-[11px] font-semibold tracking-wide uppercase`}
-                >
-                  {exp.isRunning && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse"></span>}
-                  {exp.status === "Completed" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)]"></span>}
-                  {exp.isFailed && <span className="material-symbols-outlined text-[14px]">warning</span>}
-                  {exp.status}
-                </span>
-                <span className="text-[var(--color-on-surface-variant)] text-[13px] tracking-[0.05em] font-[var(--font-geist)]">
-                  {exp.id}
-                </span>
-              </div>
-              <h3 className="text-xl font-semibold text-[var(--color-on-surface)] mb-1" style={{ letterSpacing: "-0.01em" }}>
-                {exp.title}
-              </h3>
-              <p className="text-xs tracking-[0.05em] text-[var(--color-on-surface-variant)] line-clamp-2">{exp.desc}</p>
-            </div>
-            <div className="mt-4 flex justify-between items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 min-h-0 overflow-y-auto pb-6">
+        {loading && <div className="text-[var(--color-on-surface-variant)] p-4">Loading experiments...</div>}
+        {!loading && experiments.length === 0 && (
+          <div className="text-[var(--color-on-surface-variant)] p-4">No experiments found. Run a pipeline from the dashboard!</div>
+        )}
+        {experiments.map((exp) => {
+          const isRunning = exp.status !== "Completed" && exp.status !== "Failed";
+          const isFailed = exp.status === "Failed";
+          const statusColor = isFailed ? "bg-[var(--color-error-container)]" : isRunning ? "bg-[var(--color-surface-container)]" : "bg-[var(--color-surface-container-low)]";
+          const statusTextColor = isFailed ? "text-[var(--color-on-error-container)]" : isRunning ? "text-[var(--color-on-surface)]" : "text-[var(--color-secondary)]";
+          
+          return (
+            <article
+              key={exp.id}
+              className={`bg-[var(--color-surface-container-lowest)] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[220px] relative overflow-hidden ${
+                isFailed ? "border border-transparent hover:border-[var(--color-error-container)]/50" : ""
+              }`}
+            >
+              {isRunning && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-surface-tint)]"></div>
+              )}
               <div>
-                <p className="text-[11px] font-medium text-[var(--color-on-surface-variant)] uppercase tracking-wider mb-1">
-                  {exp.isFailed && <span className="text-[var(--color-error)]">{exp.metricLabel}</span>}
-                  {!exp.isFailed && exp.metricLabel}
-                </p>
-                <p className={`text-2xl font-semibold tracking-tight ${exp.metricColor}`} style={{ lineHeight: "32px" }}>
-                  {exp.metricValue}
-                  {exp.metricSuffix && (
-                    <span className="text-base text-[var(--color-on-surface-variant)] font-normal ml-1">{exp.metricSuffix}</span>
-                  )}
+                <div className="flex justify-between items-start mb-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ${statusColor} ${statusTextColor} text-[11px] font-semibold tracking-wide uppercase`}
+                  >
+                    {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse"></span>}
+                    {exp.status === "Completed" && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-secondary)]"></span>}
+                    {isFailed && <span className="material-symbols-outlined text-[14px]">warning</span>}
+                    {exp.status}
+                  </span>
+                  <span className="text-[var(--color-on-surface-variant)] text-[13px] tracking-[0.05em] font-[var(--font-geist)]" title={exp.id}>
+                    {exp.id.substring(0, 8)}...
+                  </span>
+                </div>
+                <h3 className="text-xl font-semibold text-[var(--color-on-surface)] mb-1" style={{ letterSpacing: "-0.01em" }}>
+                  {exp.name}
+                </h3>
+                <p className="text-xs tracking-[0.05em] text-[var(--color-on-surface-variant)] line-clamp-2" title={exp.objective}>
+                  {exp.objective}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-[11px] font-medium text-[var(--color-on-surface-variant)]">{exp.timeLabel}</p>
-                <p className="text-[13px] tracking-[0.05em] text-[var(--color-on-surface)] font-medium">{exp.timeValue}</p>
+              <div className="mt-4 flex justify-between items-end">
+                <div>
+                  <p className="text-[11px] font-medium text-[var(--color-on-surface-variant)] uppercase tracking-wider mb-1">
+                    Target Metric
+                  </p>
+                  <p className={`text-xl font-semibold tracking-tight text-[var(--color-on-surface)]`} style={{ lineHeight: "32px" }}>
+                    {exp.metric.toUpperCase()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-medium text-[var(--color-on-surface-variant)]">Created</p>
+                  <p className="text-[13px] tracking-[0.05em] text-[var(--color-on-surface)] font-medium">
+                    {new Date(exp.created_at).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
       {/* ── Load More ── */}

@@ -1,38 +1,21 @@
 import os
 import re
 from crewai import Agent, LLM
-from backend.app.agents.config import AGENT_MODELS, EXTRA_HEADERS, OPENROUTER_API_KEY
+from backend.app.agents.config import AGENT_MODELS, GEMINI_API_KEY
 from backend.app.tools.search_tool import search_data
 from backend.app.tools.exec_tool import execute_python_code
 from backend.app.agents.streaming import TokenStreamingCallback
 
-class StripThinkLLM(LLM):
-    """
-    A wrapper around CrewAI's standard LLM that actively strips out DeepSeek's
-    internal <think>...</think> reasoning tags from the raw output.
-    """
-    def call(self, *args, **kwargs) -> str:
-        response = super().call(*args, **kwargs)
-        if isinstance(response, str):
-            clean_text = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
-            clean_text = re.sub(r'<think>.*', '', clean_text, flags=re.DOTALL).strip()
-            return clean_text
-        return response
-
 def get_llm(role_name: str, session_id: str):
-    model_name = AGENT_MODELS.get(role_name, AGENT_MODELS["fallback"])
+    model_name = AGENT_MODELS.get(role_name, "gemini/gemini-3.5-flash")
     
     llm_kwargs = {
-        "model": f"openrouter/{model_name}",
-        "api_key": OPENROUTER_API_KEY,
-        "base_url": "https://api.openrouter.ai/api/v1",
-        "extra_headers": EXTRA_HEADERS,
+        "model": model_name,
+        "api_key": GEMINI_API_KEY,
         "max_tokens": 8000,
         "callbacks": [TokenStreamingCallback(session_id)]
     }
     
-    if "deepseek" in model_name.lower():
-        return StripThinkLLM(**llm_kwargs)
     return LLM(**llm_kwargs)
 
 DATA_ROOT = os.getenv("DATA_ROOT", "/data")

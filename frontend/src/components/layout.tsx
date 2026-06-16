@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export function TopAppBar() {
   const pathname = usePathname();
+  const [config, setConfig] = useState({ user: "Loading...", project: "Loading..." });
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/v1/system/config")
+      .then(res => res.json())
+      .then(data => setConfig(data))
+      .catch(e => console.error("Failed to fetch system config"));
+  }, []);
 
   return (
     <header className="fixed top-0 w-full z-50 shadow-sm bg-[var(--color-surface)]/80 backdrop-blur-xl flex justify-between items-center px-6 md:px-12 h-16 border-b border-[var(--color-outline-variant)]/10">
@@ -58,11 +67,11 @@ export function TopAppBar() {
         <div className="w-px h-6 bg-[var(--color-outline-variant)]/30 mx-2"></div>
         <div className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full hover:bg-[var(--color-surface-container)] transition-colors border border-transparent hover:border-[var(--color-outline-variant)]/20">
           <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] overflow-hidden flex items-center justify-center shadow-sm">
-            <span className="text-[var(--color-on-primary)] text-xs font-bold tracking-wider">JS</span>
+            <span className="text-[var(--color-on-primary)] text-xs font-bold tracking-wider">{config.user.substring(0, 2).toUpperCase()}</span>
           </div>
           <div className="hidden lg:flex flex-col">
-            <span className="text-[12px] font-bold text-[var(--color-on-surface)] leading-none">John Smith</span>
-            <span className="text-[10px] text-[var(--color-on-surface-variant)] leading-none mt-1">Project Alpha</span>
+            <span className="text-[12px] font-bold text-[var(--color-on-surface)] leading-none">{config.user}</span>
+            <span className="text-[10px] text-[var(--color-on-surface-variant)] leading-none mt-1">{config.project}</span>
           </div>
           <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-lg">expand_more</span>
         </div>
@@ -72,16 +81,25 @@ export function TopAppBar() {
 }
 
 export function Footer() {
+  const [config, setConfig] = useState({ version: "v...", region: "..." });
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/v1/system/config")
+      .then(res => res.json())
+      .then(data => setConfig(data))
+      .catch(e => console.error("Failed to fetch config"));
+  }, []);
+
   return (
     <footer className="fixed bottom-0 right-0 left-0 h-10 bg-[var(--color-surface-container-high)] border-t border-[var(--color-outline-variant)]/20 flex justify-between items-center px-6 md:px-12 z-40 backdrop-blur-md">
       <div className="flex items-center gap-4">
         <div className="text-[11px] tracking-[0.05em] font-bold text-[var(--color-on-surface)]">
-          NeuralFlow v2.4.1-stable
+          NeuralFlow {config.version}
         </div>
         <div className="w-1 h-1 rounded-full bg-[var(--color-outline-variant)]"></div>
         <div className="text-[11px] tracking-[0.05em] font-medium text-[var(--color-on-surface-variant)] flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[14px]">cloud</span>
-          us-east-4
+          {config.region}
         </div>
       </div>
       <div className="flex gap-6 items-center">

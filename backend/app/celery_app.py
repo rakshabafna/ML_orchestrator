@@ -2,6 +2,7 @@ import os
 import json
 from celery import Celery
 from backend.app.agents.workflow import run_workflow
+from backend.app.registry import update_experiment_status
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -25,7 +26,9 @@ def run_orchestration_task(session_id: str, dataset_prompt: str, target_metric: 
     try:
         result = run_workflow(session_id, dataset_prompt)
         r.publish(f"session_{session_id}", json.dumps({"type": "status", "content": "Pipeline completed successfully."}))
+        update_experiment_status(session_id, "Completed")
         return str(result)
     except Exception as e:
         r.publish(f"session_{session_id}", json.dumps({"type": "error", "content": str(e)}))
+        update_experiment_status(session_id, "Failed")
         raise e

@@ -47,7 +47,28 @@ const pipelineStages = [
   },
 ];
 
+import { useState, useEffect } from "react";
+
 export default function InfrastructurePage() {
+  const [metrics, setMetrics] = useState({
+    cpu_usage: 0,
+    memory_usage: 0,
+    active_nodes: 0,
+    cost_rate: 0
+  });
+
+  useEffect(() => {
+    const fetchMetrics = () => {
+      fetch("http://localhost:8000/api/v1/infrastructure/metrics")
+        .then(res => res.json())
+        .then(data => setMetrics(data))
+        .catch(e => console.error("Failed to fetch metrics", e));
+    };
+    
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 2000);
+    return () => clearInterval(interval);
+  }, []);
   return (
     <div className="flex flex-col h-full min-h-0 pt-2 md:pt-4">
       {/* ── Header ── */}
@@ -114,9 +135,9 @@ export default function InfrastructurePage() {
           </div>
           <div className="p-4 space-y-4 flex-1 overflow-hidden flex flex-col justify-center">
             {[
-              { label: "CPU Cluster (us-east-4)", value: "78%", width: "78%", color: "bg-[var(--color-tertiary)]" },
-              { label: "Memory Allocation", value: "42% (64GB / 128GB)", width: "42%", color: "bg-[var(--color-primary-container)]" },
-              { label: "GPU Accelerators (A100)", value: "94%", width: "94%", color: "bg-[var(--color-primary)]" },
+              { label: `CPU Nodes (${metrics.active_nodes} Active)`, value: `${metrics.cpu_usage.toFixed(1)}%`, width: `${metrics.cpu_usage}%`, color: "bg-[var(--color-tertiary)]" },
+              { label: "Memory Allocation", value: `${metrics.memory_usage.toFixed(1)}%`, width: `${metrics.memory_usage}%`, color: "bg-[var(--color-primary-container)]" },
+              { label: "Estimated Cost Rate", value: `$${metrics.cost_rate.toFixed(2)}/hr`, width: `${(metrics.cost_rate / 12.5) * 100}%`, color: "bg-[var(--color-primary)]" },
             ].map((resource) => (
               <div key={resource.label}>
                 <div className="flex justify-between text-[13px] tracking-[0.05em] font-medium mb-2">
