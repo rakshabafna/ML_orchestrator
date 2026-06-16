@@ -9,3 +9,4 @@ pandas
 scikit-learn
 xgboost
 faker
+python-multipart
