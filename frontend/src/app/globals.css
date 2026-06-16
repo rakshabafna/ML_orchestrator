@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import "tailwindcss";
+
+@theme inline {
+  /* ── Colors (Muted Sunflower Theme) ── */
+  --color-primary: #c8b056; /* Soft Muted Sunflower */
+  --color-primary-container: #e8dbb0;
+  --color-primary-fixed: #f6eed2;
+  --color-primary-fixed-dim: #dccf98;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #423714;
+  --color-on-primary-fixed: #2a2208;
+  --color-on-primary-fixed-variant: #4e421a;
+  --color-inverse-primary: #dccf98;
+
+  --color-secondary: #9c9478; /* Muted Warm Olive-Grey */
+  --color-secondary-container: #e0d8bf;
+  --color-secondary-fixed: #f2ead1;
+  --color-secondary-fixed-dim: #cdc5a8;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #2b271b;
+  --color-on-secondary-fixed: #19160d;
+  --color-on-secondary-fixed-variant: #3f3b2f;
+
+  --color-tertiary: #87917c; /* Soft Sage Green */
+  --color-tertiary-container: #d6dfc8;
+  --color-tertiary-fixed: #eaf2dc;
+  --color-tertiary-fixed-dim: #c2cba4;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #23281d;
+  --color-on-tertiary-fixed: #12170d;
+  --color-on-tertiary-fixed-variant: #353a2d;
+
+  --color-error: #ba5c54; /* Muted Terracotta */
+  --color-error-container: #f4d1cd;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #4d1612;
+
+  --color-surface: #fbfaf6; /* Warm Pearl White */
+  --color-surface-dim: #efede6;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fbfaf6;
+  --color-surface-container: #f6f4ee;
+  --color-surface-container-high: #efede6;
+  --color-surface-container-highest: #e8e5dc;
+  --color-surface-variant: #e8e5dc;
+  --color-surface-tint: #c8b056;
+
+  --color-background: #fbfaf6;
+  --color-on-background: #181715; /* Much darker and sharper for clarity */
+  --color-on-surface: #181715;
+  --color-on-surface-variant: #524f48; /* Darker, crisper subtext */
+  --color-outline: #7c796e; /* Sharper borders */
+  --color-outline-variant: #b8b5a7; /* Clearer subtle borders */
+  --color-inverse-surface: #2b2a26;
+  --color-inverse-on-surface: #f5f4f0;
+
+  /* ── Typography ── */
+  --font-inter: 'Inter', sans-serif;
+  --font-geist: 'Geist', sans-serif;
+}
+
+/* ── Global Scale Down ── */
+html {
+  font-size: 14px; /* Slightly larger base than 13px to fix pixel blurriness, still keeps UI dense */
+}
+
+/* ── Ambient Shadows ── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.icon-fill {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* ── Ambient Shadows ── */
+.shadow-ambient {
+  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03), 0 0 2px rgba(0,0,0,0.01);
+}
+
+.shadow-ambient-hover:hover {
+  box-shadow: 0 8px 25px -4px rgba(200, 176, 86, 0.15), 0 0 4px rgba(200, 176, 86, 0.05);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glow-focus:focus-within {
+  box-shadow: 0 0 0 2px rgba(200, 176, 86, 0.2);
+  background-color: #ffffff;
+}
+
+/* ── Hero Background Animation ── */
+@keyframes subtleShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.hero-bg {
+  background: linear-gradient(-45deg, #fbfaf6, #f6eed2, #fbfaf6, #f2ead1);
+  background-size: 400% 400%;
+  animation: subtleShift 20s ease infinite;
+}
+
+/* ── Base Styles ── */
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }

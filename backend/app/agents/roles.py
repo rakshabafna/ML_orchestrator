@@ -35,10 +35,16 @@ def get_llm(role_name: str, session_id: str):
         return StripThinkLLM(**llm_kwargs)
     return LLM(**llm_kwargs)
 
-PROJECT_ROOT = "c:/Users/smart/Desktop/ML"
-RAW_DATA_DIR = f"{PROJECT_ROOT}/backend/data/raw"
-CLEAN_DATA_DIR = f"{PROJECT_ROOT}/backend/data/clean"
-ARTIFACTS_DIR = f"{PROJECT_ROOT}/backend/artifacts"
+DATA_ROOT = os.getenv("DATA_ROOT", "/data")
+
+def get_raw_data_dir(session_id: str):
+    return f"{DATA_ROOT}/{session_id}/raw"
+
+def get_clean_data_dir(session_id: str):
+    return f"{DATA_ROOT}/{session_id}/clean"
+
+def get_artifacts_dir(session_id: str):
+    return f"{DATA_ROOT}/{session_id}/artifacts"
 
 def create_agents(session_id: str):
     sourcing_agent = Agent(
