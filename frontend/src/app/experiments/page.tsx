@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL, WS_BASE_URL } from "@/config";
 import { useState, useEffect } from "react";
 
 interface Experiment {
@@ -17,7 +18,7 @@ export default function ExperimentsPage() {
 
   const fetchExperiments = () => {
     setLoading(true);
-    fetch("http://localhost:8000/api/v1/experiments")
+    fetch(`${API_BASE_URL}/api/v1/experiments`)
       .then(res => res.json())
       .then(data => {
         setExperiments(data);
@@ -36,7 +37,7 @@ export default function ExperimentsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this experiment?")) return;
     try {
-      await fetch(`http://localhost:8000/api/v1/experiments/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE_URL}/api/v1/experiments/${id}`, { method: "DELETE" });
       fetchExperiments();
     } catch (e) {
       console.error("Failed to delete", e);

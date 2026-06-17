@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL, WS_BASE_URL } from "@/config";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -67,7 +68,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!sessionId) return;
     
-    const ws = new WebSocket(`ws://localhost:8000/api/v1/stream/${sessionId}`);
+    const ws = new WebSocket(`${WS_BASE_URL}/api/v1/stream/${sessionId}`);
     
     ws.onmessage = (event) => {
       try {
@@ -105,7 +106,7 @@ export default function HomePage() {
     queryKey: ['leaderboard', sessionId],
     queryFn: async () => {
       if (!sessionId) return [];
-      const res = await fetch(`http://localhost:8000/api/v1/leaderboard/${sessionId}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/leaderboard/${sessionId}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.map((d: any, i: number) => ({
@@ -125,7 +126,7 @@ export default function HomePage() {
     queryKey: ['insights', sessionId],
     queryFn: async () => {
       if (!sessionId) return [];
-      const res = await fetch(`http://localhost:8000/api/v1/insights/${sessionId}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/insights/${sessionId}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.map((d: any) => ({
@@ -141,7 +142,7 @@ export default function HomePage() {
     queryKey: ['recommendation', sessionId],
     queryFn: async () => {
       if (!sessionId) return null;
-      const res = await fetch(`http://localhost:8000/api/v1/recommendation/${sessionId}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/recommendation/${sessionId}`);
       if (!res.ok) return null;
       const data = await res.json();
       return data.markdown;
@@ -157,7 +158,7 @@ export default function HomePage() {
     setCurrentPhase("Ingestion");
     
     try {
-      const res = await fetch("http://localhost:8000/api/v1/orchestrate", {
+      const res = await fetch(`${API_BASE_URL}/api/v1/orchestrate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -187,7 +188,7 @@ export default function HomePage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/upload/${newSessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/upload/${newSessionId}`, {
         method: "POST",
         body: formData,
       });
@@ -210,7 +211,7 @@ export default function HomePage() {
     if (!sid) return;
     
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/dataset/preview/${sid}?stage=${stage}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/dataset/preview/${sid}?stage=${stage}`);
       if (res.ok) {
         const data = await res.json();
         setPreviewData(data);
@@ -227,7 +228,7 @@ export default function HomePage() {
   const handleStop = async () => {
     if (!sessionId || !isExecuting) return;
     try {
-      await fetch(`http://localhost:8000/api/v1/stop/${sessionId}`, { method: "POST" });
+      await fetch(`${API_BASE_URL}/api/v1/stop/${sessionId}`, { method: "POST" });
       setIsExecuting(false);
       setCurrentPhase("Failed");
     } catch (e) {
@@ -621,7 +622,7 @@ export default function HomePage() {
                           <motion.a 
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            href={`http://localhost:8000/api/v1/download/dataset/${sessionId}`}
+                            href={`${API_BASE_URL}/api/v1/download/dataset/${sessionId}`}
                             download
                             className="bg-white hover:bg-gray-50 border border-[var(--color-outline-variant)] text-[var(--color-on-surface)] px-6 py-3.5 rounded-full text-[14px] font-bold transition-colors shadow-sm flex items-center gap-2"
                           >
@@ -631,7 +632,7 @@ export default function HomePage() {
                           <motion.a 
                             whileHover={{ scale: 1.05, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}
                             whileTap={{ scale: 0.95 }}
-                            href={`http://localhost:8000/api/v1/download/model/${sessionId}`}
+                            href={`${API_BASE_URL}/api/v1/download/model/${sessionId}`}
                             download
                             className="bg-black text-white hover:bg-gray-900 px-8 py-3.5 rounded-full text-[14px] font-bold transition-all shadow-md flex items-center gap-2"
                           >

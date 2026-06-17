@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL, WS_BASE_URL } from "@/config";
 import { useState, useEffect } from "react";
 
 interface Model {
@@ -18,7 +19,7 @@ export default function ModelsPage() {
 
   const fetchModels = () => {
     setLoading(true);
-    fetch("http://localhost:8000/api/v1/models")
+    fetch(`${API_BASE_URL}/api/v1/models`)
       .then(res => res.json())
       .then(data => {
         setModels(data);
@@ -37,7 +38,7 @@ export default function ModelsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this model?")) return;
     try {
-      await fetch(`http://localhost:8000/api/v1/models/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE_URL}/api/v1/models/${id}`, { method: "DELETE" });
       fetchModels();
     } catch (e) {
       console.error("Failed to delete", e);
@@ -111,7 +112,7 @@ export default function ModelsPage() {
               <span className="text-[11px] text-[var(--color-on-surface-variant)]">
                 Trained on {new Date(model.created_at).toLocaleDateString()}
               </span>
-              <a href={`http://localhost:8000/api/v1/download/model/${model.id}`} download className="text-[var(--color-primary)] hover:bg-[var(--color-primary-container)]/30 p-1.5 rounded-full transition-colors flex items-center justify-center">
+              <a href={`${API_BASE_URL}/api/v1/download/model/${model.id}`} download className="text-[var(--color-primary)] hover:bg-[var(--color-primary-container)]/30 p-1.5 rounded-full transition-colors flex items-center justify-center">
                 <span className="material-symbols-outlined text-[18px]">download</span>
               </a>
             </div>

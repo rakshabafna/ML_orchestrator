@@ -47,6 +47,7 @@ const pipelineStages = [
   },
 ];
 
+import { API_BASE_URL, WS_BASE_URL } from "@/config";
 import { useState, useEffect } from "react";
 
 export default function InfrastructurePage() {
@@ -59,7 +60,7 @@ export default function InfrastructurePage() {
 
   useEffect(() => {
     const fetchMetrics = () => {
-      fetch("http://localhost:8000/api/v1/infrastructure/metrics")
+      fetch(`${API_BASE_URL}/api/v1/infrastructure/metrics`)
         .then(res => res.json())
         .then(data => setMetrics(data))
         .catch(e => console.error("Failed to fetch metrics", e));

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { API_BASE_URL } from "../config";
 
 export function SideNavBar() {
   const pathname = usePathname();
   const [config, setConfig] = useState({ user: "Loading...", project: "Loading..." });
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/system/config")
+    fetch(`${API_BASE_URL}/api/v1/system/config`)
       .then(res => res.json())
       .then(data => setConfig(data))
       .catch(e => console.error("Failed to fetch system config"));
@@ -104,7 +105,7 @@ export function Footer() {
   const [config, setConfig] = useState({ version: "v...", region: "..." });
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/system/config")
+    fetch(`${API_BASE_URL}/api/v1/system/config`)
       .then(res => res.json())
       .then(data => setConfig(data))
       .catch(e => console.error("Failed to fetch config"));
