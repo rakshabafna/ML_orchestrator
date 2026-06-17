@@ -37,49 +37,71 @@ def evaluation_node(state: PipelineState) -> dict:
         
         model = joblib.load(model_path)
         
-        publish_log(session_id, "Computing SHAP values...")
-        
-        # Try TreeExplainer first, fallback to KernelExplainer
-        try:
-            explainer = shap.TreeExplainer(model)
-            shap_values = explainer.shap_values(X_sample)
-        except Exception:
-            try:
-                # KernelExplainer requires predict function
-                explainer = shap.KernelExplainer(model.predict, shap.kmeans(X, 10))
-                shap_values = explainer.shap_values(X_sample)
-            except Exception as e:
-                publish_log(session_id, f"SHAP Explainability failed. Using feature_importances_ if available. {e}")
-                shap_values = None
-                
+        task_type = state.get("task_type")
         top_features = []
         importance_scores = []
         
-        if shap_values is not None:
-            # Handle multi-class / list of arrays
-            if isinstance(shap_values, list):
-                # Take absolute mean across classes and samples
-                vals = np.abs(shap_values).mean(axis=0).mean(axis=0)
-            else:
-                # Handle single array (regression or binary)
-                # Ensure it's a 2D array before doing mean(axis=0)
-                if len(shap_values.shape) > 1:
-                    vals = np.abs(shap_values).mean(axis=0)
+        if task_type == "unsupervised":
+            publish_log(session_id, "Computing feature importance for unsupervised clusters...")
+            try:
+                from sklearn.ensemble import RandomForestClassifier
+                from sklearn.preprocessing import StandardScaler
+                scaler = StandardScaler()
+                X_scaled = scaler.fit_transform(X)
+                
+                if hasattr(model, 'predict'):
+                    preds = model.predict(X_scaled)
                 else:
-                    vals = np.abs(shap_values)
+                    preds = model.fit_predict(X_scaled)
+                    
+                # Train RF to interpret clusters
+                rf = RandomForestClassifier(random_state=42)
+                rf.fit(X_scaled, preds)
+                vals = rf.feature_importances_
+                feature_importance = pd.DataFrame(list(zip(X.columns, vals)), columns=['col_name', 'feature_importance_vals'])
+                feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
+                top_features = feature_importance['col_name'].head(10).tolist()
+                importance_scores = feature_importance['feature_importance_vals'].head(10).tolist()
+            except Exception as e:
+                publish_log(session_id, f"Unsupervised explainability failed: {e}")
+        else:
+            publish_log(session_id, "Computing SHAP values...")
             
-            feature_importance = pd.DataFrame(list(zip(X.columns, vals)), columns=['col_name', 'feature_importance_vals'])
-            feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
-            
-            top_features = feature_importance['col_name'].head(10).tolist()
-            importance_scores = feature_importance['feature_importance_vals'].head(10).tolist()
-        elif hasattr(model, 'feature_importances_'):
-            vals = model.feature_importances_
-            feature_importance = pd.DataFrame(list(zip(X.columns, vals)), columns=['col_name', 'feature_importance_vals'])
-            feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
-            
-            top_features = feature_importance['col_name'].head(10).tolist()
-            importance_scores = feature_importance['feature_importance_vals'].head(10).tolist()
+            # Try TreeExplainer first, fallback to KernelExplainer
+            try:
+                explainer = shap.TreeExplainer(model)
+                shap_values = explainer.shap_values(X_sample)
+            except Exception:
+                try:
+                    # KernelExplainer requires predict function
+                    explainer = shap.KernelExplainer(model.predict, shap.kmeans(X, 10))
+                    shap_values = explainer.shap_values(X_sample)
+                except Exception as e:
+                    publish_log(session_id, f"SHAP Explainability failed. Using feature_importances_ if available. {e}")
+                    shap_values = None
+                    
+            if shap_values is not None:
+                # Handle multi-class / list of arrays
+                if isinstance(shap_values, list):
+                    vals = np.abs(shap_values).mean(axis=0).mean(axis=0)
+                else:
+                    if len(shap_values.shape) > 1:
+                        vals = np.abs(shap_values).mean(axis=0)
+                    else:
+                        vals = np.abs(shap_values)
+                
+                feature_importance = pd.DataFrame(list(zip(X.columns, vals)), columns=['col_name', 'feature_importance_vals'])
+                feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
+                
+                top_features = feature_importance['col_name'].head(10).tolist()
+                importance_scores = feature_importance['feature_importance_vals'].head(10).tolist()
+            elif hasattr(model, 'feature_importances_'):
+                vals = model.feature_importances_
+                feature_importance = pd.DataFrame(list(zip(X.columns, vals)), columns=['col_name', 'feature_importance_vals'])
+                feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
+                
+                top_features = feature_importance['col_name'].head(10).tolist()
+                importance_scores = feature_importance['feature_importance_vals'].head(10).tolist()
             
         artifacts_dir = _get_artifacts_dir(session_id)
         os.makedirs(artifacts_dir, exist_ok=True)

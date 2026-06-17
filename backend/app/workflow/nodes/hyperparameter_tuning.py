@@ -6,11 +6,18 @@ import optuna
 import logging
 from optuna.integration import OptunaSearchCV
 from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, ExtraTreesClassifier, AdaBoostClassifier, IsolationForest
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.svm import SVC, SVR
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
 
 from backend.app.models import PipelineState
 from backend.app.telemetry import publish_event, publish_log
@@ -34,9 +41,16 @@ def hyperparameter_tuning_node(state: PipelineState) -> dict:
         return {"error": "No best model selected"}
         
     df = pd.read_csv(engineered_path)
-    y = df[target_col]
-    X = df.drop(columns=[target_col])
     
+    if task_type != "unsupervised":
+        y = df[target_col]
+        X = df.drop(columns=[target_col])
+    else:
+        y = None
+        X = df
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+        
     publish_log(session_id, f"Tuning {best_model_name} via Optuna...")
     
     model = None
@@ -64,16 +78,43 @@ def hyperparameter_tuning_node(state: PipelineState) -> dict:
             'num_leaves': optuna.distributions.IntDistribution(20, 100),
             'learning_rate': optuna.distributions.FloatDistribution(0.01, 0.3, log=True)
         }
+    elif best_model_name == "SVC" or best_model_name == "SVR":
+        model = SVC(probability=True, random_state=42) if task_type == "classification" else SVR()
+        param_distributions = {
+            'C': optuna.distributions.FloatDistribution(0.1, 10.0, log=True),
+            'kernel': optuna.distributions.CategoricalDistribution(['linear', 'rbf'])
+        }
+    elif best_model_name == "KNN" or best_model_name == "KNN Regressor":
+        model = KNeighborsClassifier() if task_type == "classification" else KNeighborsRegressor()
+        param_distributions = {
+            'n_neighbors': optuna.distributions.IntDistribution(3, 15),
+            'weights': optuna.distributions.CategoricalDistribution(['uniform', 'distance'])
+        }
+    elif best_model_name == "Ridge":
+        model = Ridge()
+        param_distributions = {'alpha': optuna.distributions.FloatDistribution(0.1, 10.0, log=True)}
+    elif best_model_name == "Lasso":
+        model = Lasso()
+        param_distributions = {'alpha': optuna.distributions.FloatDistribution(0.01, 1.0, log=True)}
     else:
-        # Fallback to base model for un-tuned algorithms
+        # Base fallback
         if task_type == "classification":
             model = LogisticRegression(max_iter=1000)
-        else:
+        elif task_type == "regression":
             model = LinearRegression()
+        elif best_model_name == "KMeans":
+            model = KMeans(n_clusters=3, random_state=42)
+        elif best_model_name == "DBSCAN":
+            model = DBSCAN(eps=0.5, min_samples=5)
+        elif best_model_name == "Agglomerative":
+            model = AgglomerativeClustering(n_clusters=3)
+        elif best_model_name == "Isolation Forest":
+            model = IsolationForest(random_state=42)
+            
         publish_log(session_id, f"{best_model_name} does not have Optuna search space configured. Fitting base model.")
         
     try:
-        if param_distributions:
+        if param_distributions and task_type != "unsupervised":
             search = OptunaSearchCV(
                 estimator=model,
                 param_distributions=param_distributions,
@@ -88,7 +129,15 @@ def hyperparameter_tuning_node(state: PipelineState) -> dict:
             search_method = "Optuna"
         else:
             final_model = model
-            final_model.fit(X, y)
+            if task_type == "unsupervised":
+                if best_model_name in ["KMeans", "Agglomerative", "DBSCAN", "Isolation Forest"]:
+                    pass # Handled below
+                else:
+                    final_model = KMeans(n_clusters=3, random_state=42)
+                final_model.fit(X)
+            else:
+                final_model.fit(X, y)
+                
             best_params = {}
             best_score = 0.0 # Placeholder
             search_method = "None"

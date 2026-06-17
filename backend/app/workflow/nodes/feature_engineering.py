@@ -2,7 +2,8 @@ import os
 import json
 import pandas as pd
 import numpy as np
-from sklearn.feature_selection import SelectKBest, mutual_info_classif, mutual_info_regression
+from sklearn.feature_selection import SelectKBest, mutual_info_classif, mutual_info_regression, VarianceThreshold
+from sklearn.decomposition import PCA
 from backend.app.models import PipelineState
 from backend.app.telemetry import publish_event, publish_log
 from backend.app.config import DATA_ROOT
@@ -32,12 +33,19 @@ def feature_engineering_node(state: PipelineState) -> dict:
         
         # 1. Detect target (heuristic: last column or explicit fallback)
         target_col = state.get("target_column")
-        if not target_col or target_col not in df.columns:
-            target_col = df.columns[-1]
-            publish_log(session_id, f"Auto-detected target column: {target_col}")
-            
-        y = df[target_col]
-        X = df.drop(columns=[target_col])
+        task_type = state.get("task_type", "classification")
+        
+        if task_type != "unsupervised":
+            if not target_col or target_col not in df.columns:
+                target_col = df.columns[-1]
+                publish_log(session_id, f"Auto-detected target column: {target_col}")
+                
+            y = df[target_col]
+            X = df.drop(columns=[target_col])
+        else:
+            y = None
+            X = df
+            target_col = None
         
         # 2. Correlation Analysis
         publish_event(session_id, "Feature Eng.", "RUNNING", "Removing highly correlated features")
@@ -63,28 +71,44 @@ def feature_engineering_node(state: PipelineState) -> dict:
                 # Cap outliers
                 X[col] = np.clip(X[col], Q1 - 1.5 * IQR, Q3 + 1.5 * IQR)
                 
-        # 4. Feature Selection (SelectKBest)
-        publish_event(session_id, "Feature Eng.", "RUNNING", "Selecting top features")
-        is_classification = len(y.unique()) < 20 and y.dtype in [np.int64, np.int32, object]
-        task_type = "classification" if is_classification else "regression"
+        # 4. Feature Selection
+        publish_event(session_id, "Feature Eng.", "RUNNING", "Selecting features")
         
-        # We need to make sure we don't request more k than features
-        k = min(20, len(X.columns))
-        score_func = mutual_info_classif if task_type == "classification" else mutual_info_regression
-        
-        selector = SelectKBest(score_func=score_func, k=k)
-        selector.fit(X, y)
-        
-        selected_mask = selector.get_support()
-        selected_cols = X.columns[selected_mask].tolist()
-        dropped_cols = X.columns[~selected_mask].tolist()
-        
-        X = X[selected_cols]
-        report["selected_features"] = selected_cols
-        report["removed_features"].extend(dropped_cols)
+        if task_type == "unsupervised":
+            # Unsupervised: Remove low variance features
+            selector = VarianceThreshold(threshold=0.01)
+            selector.fit(X)
+            selected_mask = selector.get_support()
+            selected_cols = X.columns[selected_mask].tolist()
+            dropped_cols = X.columns[~selected_mask].tolist()
+            X = X[selected_cols]
+            report["selected_features"] = selected_cols
+            report["removed_features"].extend(dropped_cols)
+        else:
+            # Supervised: SelectKBest
+            is_classification = len(y.unique()) < 20 and y.dtype in [np.int64, np.int32, object]
+            # Override task_type if heuristic disagrees
+            task_type = "classification" if is_classification else "regression"
+            
+            k = min(20, len(X.columns))
+            score_func = mutual_info_classif if task_type == "classification" else mutual_info_regression
+            
+            selector = SelectKBest(score_func=score_func, k=k)
+            selector.fit(X, y)
+            
+            selected_mask = selector.get_support()
+            selected_cols = X.columns[selected_mask].tolist()
+            dropped_cols = X.columns[~selected_mask].tolist()
+            
+            X = X[selected_cols]
+            report["selected_features"] = selected_cols
+            report["removed_features"].extend(dropped_cols)
         
         # Save engineered dataset
-        engineered_df = pd.concat([X, y], axis=1)
+        if y is not None:
+            engineered_df = pd.concat([X, y], axis=1)
+        else:
+            engineered_df = X
         engineered_path = clean_dataset_path.replace("cleaned_dataset.csv", "engineered_dataset.csv")
         engineered_df.to_csv(engineered_path, index=False)
         

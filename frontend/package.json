@@ -10,11 +10,14 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.20.0",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "shaders": "^2.5.130"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

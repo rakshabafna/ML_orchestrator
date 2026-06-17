@@ -1,73 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
 
 @theme inline {
-  /* ── Colors (Muted Sunflower Theme) ── */
-  --color-primary: #c8b056; /* Soft Muted Sunflower */
-  --color-primary-container: #e8dbb0;
-  --color-primary-fixed: #f6eed2;
-  --color-primary-fixed-dim: #dccf98;
+  /* ── Colors (Premium Light Gold / Pearl Theme) ── */
+  --color-primary: #d4af37; /* Metallic Gold */
+  --color-primary-container: #f9f5e8; /* Very soft gold tint */
+  --color-primary-fixed: #fffaf0;
+  --color-primary-fixed-dim: #e6c875;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #423714;
-  --color-on-primary-fixed: #2a2208;
-  --color-on-primary-fixed-variant: #4e421a;
-  --color-inverse-primary: #dccf98;
+  --color-on-primary-container: #4a3c10;
+  --color-on-primary-fixed: #2e2406;
+  --color-on-primary-fixed-variant: #5a4913;
+  --color-inverse-primary: #f2e2a7;
 
-  --color-secondary: #9c9478; /* Muted Warm Olive-Grey */
-  --color-secondary-container: #e0d8bf;
-  --color-secondary-fixed: #f2ead1;
-  --color-secondary-fixed-dim: #cdc5a8;
+  --color-secondary: #8c867a; /* Warm Slate */
+  --color-secondary-container: #ebe8e1;
+  --color-secondary-fixed: #f5f3ef;
+  --color-secondary-fixed-dim: #d1cbc0;
   --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #2b271b;
-  --color-on-secondary-fixed: #19160d;
-  --color-on-secondary-fixed-variant: #3f3b2f;
+  --color-on-secondary-container: #2e2b26;
+  --color-on-secondary-fixed: #1a1815;
+  --color-on-secondary-fixed-variant: #423e37;
 
-  --color-tertiary: #87917c; /* Soft Sage Green */
-  --color-tertiary-container: #d6dfc8;
-  --color-tertiary-fixed: #eaf2dc;
-  --color-tertiary-fixed-dim: #c2cba4;
+  --color-tertiary: #7d8c83; /* Soft Sage */
+  --color-tertiary-container: #e6ebe8;
+  --color-tertiary-fixed: #f2f5f3;
+  --color-tertiary-fixed-dim: #bac5be;
   --color-on-tertiary: #ffffff;
-  --color-on-tertiary-container: #23281d;
-  --color-on-tertiary-fixed: #12170d;
-  --color-on-tertiary-fixed-variant: #353a2d;
+  --color-on-tertiary-container: #262e29;
+  --color-on-tertiary-fixed: #141a16;
+  --color-on-tertiary-fixed-variant: #38423d;
 
-  --color-error: #ba5c54; /* Muted Terracotta */
-  --color-error-container: #f4d1cd;
+  --color-error: #cc5c5c;
+  --color-error-container: #fae6e6;
   --color-on-error: #ffffff;
-  --color-on-error-container: #4d1612;
+  --color-on-error-container: #5c1414;
 
-  --color-surface: #fbfaf6; /* Warm Pearl White */
-  --color-surface-dim: #efede6;
+  --color-surface: #ffffff; /* Pure Pearl White */
+  --color-surface-dim: #f5f4f0;
   --color-surface-bright: #ffffff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #fbfaf6;
-  --color-surface-container: #f6f4ee;
-  --color-surface-container-high: #efede6;
-  --color-surface-container-highest: #e8e5dc;
-  --color-surface-variant: #e8e5dc;
-  --color-surface-tint: #c8b056;
+  --color-surface-container-low: #fdfdfc;
+  --color-surface-container: #f9f8f6;
+  --color-surface-container-high: #f2f0eb;
+  --color-surface-container-highest: #ebe9e4;
+  --color-surface-variant: #f0eee9;
+  --color-surface-tint: #d4af37;
 
-  --color-background: #fbfaf6;
-  --color-on-background: #181715; /* Much darker and sharper for clarity */
-  --color-on-surface: #181715;
-  --color-on-surface-variant: #524f48; /* Darker, crisper subtext */
-  --color-outline: #7c796e; /* Sharper borders */
-  --color-outline-variant: #b8b5a7; /* Clearer subtle borders */
-  --color-inverse-surface: #2b2a26;
-  --color-inverse-on-surface: #f5f4f0;
+  --color-background: #faf9f7; /* Slightly warm off-white for depth */
+  --color-on-background: #121110; /* Deepest Charcoal */
+  --color-on-surface: #171614;
+  --color-on-surface-variant: #5c5852; /* Crisp Subtext */
+  --color-outline: #8f8a81;
+  --color-outline-variant: #d1cdc7; /* Subtle borders */
+  --color-inverse-surface: #21201e;
+  --color-inverse-on-surface: #f7f6f2;
 
   /* ── Typography ── */
-  --font-inter: 'Inter', sans-serif;
-  --font-geist: 'Geist', sans-serif;
+  --font-inter: 'Outfit', sans-serif;
+  --font-geist: 'Outfit', sans-serif;
 }
 
 /* ── Global Scale Down ── */
 html {
-  font-size: 14px; /* Slightly larger base than 13px to fix pixel blurriness, still keeps UI dense */
+  font-size: 14px;
 }
 
-/* ── Ambient Shadows ── */
+/* ── Ambient Shadows & Glassmorphism ── */
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;
@@ -88,24 +88,44 @@ html {
   font-variation-settings: 'FILL' 1;
 }
 
-/* ── Ambient Shadows ── */
+/* Premium Soft Shadows */
 .shadow-ambient {
-  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.03), 0 0 2px rgba(0,0,0,0.01);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04), 0 4px 10px -2px rgba(0, 0, 0, 0.02);
 }
 
 .shadow-ambient-hover:hover {
-  box-shadow: 0 8px 25px -4px rgba(200, 176, 86, 0.15), 0 0 4px rgba(200, 176, 86, 0.05);
+  box-shadow: 0 15px 50px -10px rgba(212, 175, 55, 0.2), 0 5px 15px -4px rgba(212, 175, 55, 0.1);
+}
+
+.shadow-glass {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-header {
+  background: rgba(250, 249, 247, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(209, 205, 199, 0.3);
+}
+
+.glass-terminal {
+  background: rgba(33, 32, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .glow-focus:focus-within {
-  box-shadow: 0 0 0 2px rgba(200, 176, 86, 0.2);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.3);
   background-color: #ffffff;
+  border-color: var(--color-primary);
 }
 
 /* ── Hero Background Animation ── */
@@ -114,10 +134,11 @@ html {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+
 .hero-bg {
-  background: linear-gradient(-45deg, #fbfaf6, #f6eed2, #fbfaf6, #f2ead1);
+  background: linear-gradient(-45deg, #faf9f7, #f9f5e8, #faf9f7, #f5f3ef);
   background-size: 400% 400%;
-  animation: subtleShift 20s ease infinite;
+  animation: subtleShift 25s ease infinite;
 }
 
 /* ── Base Styles ── */
@@ -130,12 +151,29 @@ body {
 }
 
 ::selection {
-  background-color: var(--color-primary-container);
+  background-color: rgba(212, 175, 55, 0.2);
   color: var(--color-on-primary-container);
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}

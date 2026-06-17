@@ -4,7 +4,15 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, mean_absolute_error, mean_squared_error, r2_score
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, ExtraTreesClassifier, AdaBoostClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, ExtraTreesClassifier, AdaBoostClassifier, IsolationForest
+from sklearn.svm import SVC, SVR
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
@@ -34,11 +42,15 @@ def model_selection_node(state: PipelineState) -> dict:
         
     try:
         df = pd.read_csv(engineered_path)
-        y = df[target_col]
-        X = df.drop(columns=[target_col])
-        
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
+        if task_type != "unsupervised":
+            y = df[target_col]
+            X = df.drop(columns=[target_col])
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        else:
+            X = df
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            
         results = []
         
         if task_type == "classification":
@@ -46,6 +58,10 @@ def model_selection_node(state: PipelineState) -> dict:
             models = {
                 "Logistic Regression": LogisticRegression(max_iter=1000),
                 "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+                "SVC": SVC(probability=True, random_state=42),
+                "KNN": KNeighborsClassifier(),
+                "Naive Bayes": GaussianNB(),
+                "MLP Classifier": MLPClassifier(max_iter=500, random_state=42),
                 "Extra Trees": ExtraTreesClassifier(n_estimators=100, random_state=42),
                 "AdaBoost": AdaBoostClassifier(n_estimators=100, random_state=42),
                 "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42),
@@ -73,10 +89,16 @@ def model_selection_node(state: PipelineState) -> dict:
                     "f1": f1,
                     "roc_auc": roc_auc
                 })
-        else:
+        elif task_type == "regression":
             publish_log(session_id, "Evaluating Regression Models...")
             models = {
                 "Linear Regression": LinearRegression(),
+                "Ridge": Ridge(),
+                "Lasso": Lasso(),
+                "ElasticNet": ElasticNet(),
+                "SVR": SVR(),
+                "KNN Regressor": KNeighborsRegressor(),
+                "MLP Regressor": MLPRegressor(max_iter=500, random_state=42),
                 "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
                 "XGBoost": XGBRegressor(random_state=42),
                 "LightGBM": LGBMRegressor(random_state=42, verbose=-1),
@@ -97,6 +119,34 @@ def model_selection_node(state: PipelineState) -> dict:
                     "score": r2, # Default sort by R2
                     "mae": mae,
                     "rmse": rmse
+                })
+                
+        elif task_type == "unsupervised":
+            publish_log(session_id, "Evaluating Unsupervised Models...")
+            models = {
+                "KMeans": KMeans(n_clusters=3, random_state=42),
+                "Agglomerative": AgglomerativeClustering(n_clusters=3),
+                "DBSCAN": DBSCAN(eps=0.5, min_samples=5),
+                "Isolation Forest": IsolationForest(random_state=42)
+            }
+            
+            for name, model in models.items():
+                publish_log(session_id, f"Training {name}...")
+                if name == "Isolation Forest":
+                    preds = model.fit_predict(X_scaled)
+                else:
+                    preds = model.fit_predict(X_scaled)
+                    
+                try:
+                    sil = float(silhouette_score(X_scaled, preds))
+                    db = float(davies_bouldin_score(X_scaled, preds))
+                except:
+                    sil, db = -1.0, 99.0
+                    
+                results.append({
+                    "model_name": name,
+                    "score": sil, # Silhouette is better when higher
+                    "davies_bouldin": db
                 })
                 
         # Sort descending by score
