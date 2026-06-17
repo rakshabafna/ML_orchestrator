@@ -9,8 +9,8 @@ __pycache__/
 *.so
 
 # Data and Artifacts (Ignore large datasets and generated models)
-backend/data/raw/*.csv
-backend/data/clean/*.csv
+backend/data/
+backend/backend/data/
 backend/artifacts/*.joblib
 backend/artifacts/*.pkl
 backend/artifacts/*.h5

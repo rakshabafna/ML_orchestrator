@@ -16,3 +16,5 @@ scikit-learn
 xgboost
 faker
 python-multipart
+psutil
+litellm

@@ -1,17 +1,21 @@
 import os
 import re
 from crewai import Agent, LLM
-from backend.app.agents.config import AGENT_MODELS, GEMINI_API_KEY
+from crewai.llms import cache
+from backend.app.agents.config import AGENT_MODELS, OPENROUTER_API_KEY
 from backend.app.tools.search_tool import search_data
 from backend.app.tools.exec_tool import execute_python_code
 from backend.app.agents.streaming import TokenStreamingCallback
 
+# Monkeypatch CrewAI's prompt caching to prevent invalid property errors with Groq
+cache.mark_cache_breakpoint = lambda m: m
+
 def get_llm(role_name: str, session_id: str):
-    model_name = AGENT_MODELS.get(role_name, "gemini/gemini-3.5-flash")
+    model_name = AGENT_MODELS.get(role_name, "openrouter/free")
     
     llm_kwargs = {
         "model": model_name,
-        "api_key": GEMINI_API_KEY,
+        "api_key": OPENROUTER_API_KEY,
         "max_tokens": 8000,
         "callbacks": [TokenStreamingCallback(session_id)]
     }
@@ -38,7 +42,8 @@ def create_agents(session_id: str):
         llm=get_llm("sourcing", session_id),
         tools=[search_data, execute_python_code],
         allow_delegation=False,
-        verbose=True
+        verbose=True,
+        cache=False
     )
 
     engineer_agent = Agent(
@@ -48,7 +53,8 @@ def create_agents(session_id: str):
         llm=get_llm("engineer", session_id),
         tools=[execute_python_code],
         allow_delegation=False,
-        verbose=True
+        verbose=True,
+        cache=False
     )
 
     selector_agent = Agent(
@@ -58,7 +64,8 @@ def create_agents(session_id: str):
         llm=get_llm("selector", session_id),
         tools=[execute_python_code],
         allow_delegation=False,
-        verbose=True
+        verbose=True,
+        cache=False
     )
 
     tuner_agent = Agent(
@@ -68,7 +75,8 @@ def create_agents(session_id: str):
         llm=get_llm("tuner", session_id),
         tools=[execute_python_code],
         allow_delegation=False,
-        verbose=True
+        verbose=True,
+        cache=False
     )
     
     return sourcing_agent, engineer_agent, selector_agent, tuner_agent

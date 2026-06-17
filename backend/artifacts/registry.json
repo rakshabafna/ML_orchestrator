@@ -53,6 +53,114 @@
       "status": "running",
       "created_at": "2026-06-16T14:39:48.400957",
       "updated_at": "2026-06-16T14:39:48.401004"
+    },
+    {
+      "id": "bb6a6a54-4afd-43f7-8fd7-ecdf8ab11fbb",
+      "name": "Exp-bb6a6a",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:08:05.165429",
+      "updated_at": "2026-06-16T17:08:38.882562"
+    },
+    {
+      "id": "5ceb4e55-8ca8-44d6-86d5-99f6a9ceef98",
+      "name": "Exp-5ceb4e",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:13:00.099196",
+      "updated_at": "2026-06-16T17:13:00.180224"
+    },
+    {
+      "id": "06b9d198-9655-43c4-9d5c-1e473115ce12",
+      "name": "Exp-06b9d1",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:16:02.729386",
+      "updated_at": "2026-06-16T17:16:03.352468"
+    },
+    {
+      "id": "f08d69a5-ab82-4347-9221-07e8cbac6a76",
+      "name": "Exp-f08d69",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:22:41.523292",
+      "updated_at": "2026-06-16T17:22:42.146131"
+    },
+    {
+      "id": "67ac8f44-3dd0-4cfd-bba4-33d278f01575",
+      "name": "Exp-67ac8f",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:29:21.872008",
+      "updated_at": "2026-06-16T17:29:21.937187"
+    },
+    {
+      "id": "7325e6f5-b945-45dd-9f26-dc672f6bfb01",
+      "name": "Exp-7325e6",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:32:57.169647",
+      "updated_at": "2026-06-16T17:32:59.255271"
+    },
+    {
+      "id": "345ba782-b725-420b-a49a-fb24519bd892",
+      "name": "Exp-345ba7",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:42:01.152728",
+      "updated_at": "2026-06-16T17:42:14.258635"
+    },
+    {
+      "id": "1fe4b73a-9732-4f59-8d3e-18adf3b77f6e",
+      "name": "Exp-1fe4b7",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:47:05.803405",
+      "updated_at": "2026-06-16T17:47:09.722337"
+    },
+    {
+      "id": "6fa180d1-1aa2-405b-980b-58691c4ab092",
+      "name": "Exp-6fa180",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T17:54:51.466832",
+      "updated_at": "2026-06-16T17:55:23.393106"
+    },
+    {
+      "id": "e04f3c15-dda7-41cd-9ffa-5721daf17868",
+      "name": "Exp-e04f3c",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Failed",
+      "created_at": "2026-06-16T18:03:24.757992",
+      "updated_at": "2026-06-16T18:03:53.560305"
+    },
+    {
+      "id": "75f74d8a-871a-4b9f-b935-8fff1c35e519",
+      "name": "Exp-75f74d",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "running",
+      "created_at": "2026-06-16T18:08:01.791257",
+      "updated_at": "2026-06-16T18:08:01.791257"
+    },
+    {
+      "id": "1be10278-2b01-4c20-9f64-21b044e371fd",
+      "name": "Exp-1be102",
+      "objective": "Predict customer churn based on this dataset.",
+      "metric": "accuracy",
+      "status": "Completed",
+      "created_at": "2026-06-16T18:30:01.186856",
+      "updated_at": "2026-06-16T18:47:17.474383"
     }
   ],
   "models": []

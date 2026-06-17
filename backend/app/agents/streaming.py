@@ -1,14 +1,16 @@
 import os
 import json
 import redis
+from langchain_core.callbacks import BaseCallbackHandler
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-class TokenStreamingCallback:
+class TokenStreamingCallback(BaseCallbackHandler):
     """
     Custom callback handler to stream LLM tokens to Redis Pub/Sub.
     """
     def __init__(self, session_id: str):
+        super().__init__()
         self.session_id = session_id
         self.redis_client = redis.from_url(REDIS_URL)
         self.channel = f"session_{session_id}"
