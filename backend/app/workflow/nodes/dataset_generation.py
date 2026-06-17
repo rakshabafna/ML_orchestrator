@@ -32,7 +32,7 @@ def dataset_generation_node(state: PipelineState) -> dict:
     
     # LLM via LangChain + OpenRouter
     llm = ChatOpenAI(
-        model="google/gemma-4-31b-it:free", # Using a reliable free model
+        model="openai/gpt-oss-120b:free", # Using a reliable free model
         openai_api_key=OPENROUTER_API_KEY,
         openai_api_base="https://openrouter.ai/api/v1",
         max_tokens=2000
@@ -67,11 +67,11 @@ IMPORTANT:
         publish_log(session_id, "Generated Python code for synthetic data. Executing...")
         
         # Execute script
-        with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(script_code)
             script_file = f.name
             
-        result = subprocess.run(["python", script_file], capture_output=True, text=True)
+        result = subprocess.run(["python", script_file], capture_output=True, text=True, encoding='utf-8')
         os.unlink(script_file)
         
         if result.returncode != 0:

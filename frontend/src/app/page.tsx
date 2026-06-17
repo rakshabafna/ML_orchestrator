@@ -39,6 +39,23 @@ export default function HomePage() {
   
   const logsEndRef = useRef<HTMLDivElement>(null);
 
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedSession = localStorage.getItem("neuralflow_sessionId");
+    const savedPhase = localStorage.getItem("neuralflow_currentPhase");
+    if (savedSession) setSessionId(savedSession);
+    if (savedPhase) setCurrentPhase(savedPhase);
+  }, []);
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    if (sessionId) localStorage.setItem("neuralflow_sessionId", sessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (currentPhase) localStorage.setItem("neuralflow_currentPhase", currentPhase);
+  }, [currentPhase]);
+
   // Auto-scroll terminal
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });

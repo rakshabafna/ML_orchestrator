@@ -104,7 +104,7 @@ def hyperparameter_tuning_node(state: PipelineState) -> dict:
             "n_trials": 20 if param_distributions else 0
         }
         report_path = os.path.join(artifacts_dir, "tuning_report.json")
-        with open(report_path, "w") as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
             
         # Save Model

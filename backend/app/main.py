@@ -184,7 +184,7 @@ async def get_insights(session_id: str):
         ]
         
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             
         features = data.get("top_features", [])
@@ -211,7 +211,7 @@ async def get_recommendation(session_id: str):
         raise HTTPException(status_code=404, detail="Recommendation not found.")
         
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
         return {"markdown": content}
     except Exception as e:

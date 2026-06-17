@@ -19,11 +19,11 @@ def recommendation_node(state: PipelineState) -> dict:
     publish_log(session_id, "Generating Model Recommendation Report via LLM...")
     
     try:
-        with open(leaderboard_path, "r") as f:
+        with open(leaderboard_path, "r", encoding="utf-8") as f:
             leaderboard = json.load(f)
             
         llm = ChatOpenAI(
-            model="google/gemma-4-31b-it:free",
+            model="openai/gpt-oss-120b:free",
             openai_api_key=OPENROUTER_API_KEY,
             openai_api_base="https://openrouter.ai/api/v1",
             max_tokens=1000
@@ -46,7 +46,7 @@ Please write a brief 2-paragraph executive summary explaining WHY this model won
         os.makedirs(artifacts_dir, exist_ok=True)
         rec_path = os.path.join(artifacts_dir, "recommendation.md")
         
-        with open(rec_path, "w") as f:
+        with open(rec_path, "w", encoding="utf-8") as f:
             f.write(recommendation_text)
             
         publish_log(session_id, "Recommendation report generated.")

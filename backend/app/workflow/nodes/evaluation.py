@@ -85,7 +85,7 @@ def evaluation_node(state: PipelineState) -> dict:
         os.makedirs(artifacts_dir, exist_ok=True)
         
         explain_path = os.path.join(artifacts_dir, "explainability.json")
-        with open(explain_path, "w") as f:
+        with open(explain_path, "w", encoding="utf-8") as f:
             json.dump({
                 "top_features": top_features,
                 "importance_scores": [float(x) for x in importance_scores]

@@ -107,7 +107,7 @@ def model_selection_node(state: PipelineState) -> dict:
         artifacts_dir = _get_artifacts_dir(session_id)
         os.makedirs(artifacts_dir, exist_ok=True)
         leaderboard_path = os.path.join(artifacts_dir, "leaderboard.json")
-        with open(leaderboard_path, "w") as f:
+        with open(leaderboard_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
             
         publish_log(session_id, f"Model selection complete. Best model: {best_model} with score {results[0]['score']:.4f}")

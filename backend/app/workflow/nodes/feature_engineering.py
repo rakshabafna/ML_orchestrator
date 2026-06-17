@@ -92,7 +92,7 @@ def feature_engineering_node(state: PipelineState) -> dict:
         artifacts_dir = _get_artifacts_dir(session_id)
         os.makedirs(artifacts_dir, exist_ok=True)
         report_path = os.path.join(artifacts_dir, "feature_report.json")
-        with open(report_path, "w") as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
             
         publish_log(session_id, f"Selected {len(selected_cols)} features. Removed {len(report['removed_features'])} features total.")
