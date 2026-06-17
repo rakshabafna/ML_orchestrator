@@ -16,7 +16,8 @@ export default function ModelsPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchModels = () => {
+    setLoading(true);
     fetch("http://localhost:8000/api/v1/models")
       .then(res => res.json())
       .then(data => {
@@ -27,7 +28,21 @@ export default function ModelsPage() {
         console.error("Failed to fetch models", e);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchModels();
   }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this model?")) return;
+    try {
+      await fetch(`http://localhost:8000/api/v1/models/${id}`, { method: "DELETE" });
+      fetchModels();
+    } catch (e) {
+      console.error("Failed to delete", e);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -42,6 +57,9 @@ export default function ModelsPage() {
           </p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
+          <button onClick={fetchModels} className="flex-1 md:flex-none px-6 py-3 bg-[var(--color-surface-container-high)] text-[var(--color-on-surface)] rounded-xl hover:bg-[var(--color-outline-variant)] transition-colors shadow-ambient text-[13px] tracking-[0.05em] font-bold flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined">refresh</span> Refresh
+          </button>
           <button className="flex-1 md:flex-none px-6 py-3 bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded-xl hover:bg-[var(--color-surface-tint)] transition-colors shadow-ambient text-[13px] tracking-[0.05em] font-bold flex items-center justify-center gap-2">
             <span className="material-symbols-outlined">add</span> Import Model
           </button>
@@ -62,9 +80,14 @@ export default function ModelsPage() {
                 <span className="bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] text-[11px] font-semibold tracking-wide uppercase px-2 py-1 rounded-md">
                   {model.status}
                 </span>
-                <span className="font-[var(--font-geist)] text-[12px] text-[var(--color-on-surface-variant)]">
-                  {model.version}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-[var(--font-geist)] text-[12px] text-[var(--color-on-surface-variant)]">
+                    {model.version}
+                  </span>
+                  <button onClick={() => handleDelete(model.id)} className="text-[var(--color-error)] hover:bg-[var(--color-error-container)] p-1 rounded-full transition-colors flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                </div>
               </div>
               <h3 className="text-xl font-semibold text-[var(--color-on-surface)] mb-1">
                 {model.name}
@@ -88,9 +111,9 @@ export default function ModelsPage() {
               <span className="text-[11px] text-[var(--color-on-surface-variant)]">
                 Trained on {new Date(model.created_at).toLocaleDateString()}
               </span>
-              <button className="text-[var(--color-primary)] hover:bg-[var(--color-primary-container)]/30 p-1.5 rounded-full transition-colors flex items-center justify-center">
+              <a href={`http://localhost:8000/api/v1/download/model/${model.id}`} download className="text-[var(--color-primary)] hover:bg-[var(--color-primary-container)]/30 p-1.5 rounded-full transition-colors flex items-center justify-center">
                 <span className="material-symbols-outlined text-[18px]">download</span>
-              </button>
+              </a>
             </div>
           </div>
         ))}

@@ -11,7 +11,8 @@ import pandas as pd
 import psutil
 
 from backend.app.celery_app import run_orchestration_task, celery_app
-from backend.app.registry import get_all_experiments, get_all_models, register_experiment
+from backend.app.database import get_experiment, list_experiments, list_models, create_experiment, delete_experiment, update_experiment
+from backend.app.config import REDIS_URL, DATA_ROOT
 
 app = FastAPI(title="Autonomous ML Experiment Orchestrator")
 
@@ -23,9 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+def get_raw_data_dir(session_id: str):
+    return os.path.join(DATA_ROOT, session_id, "raw")
 
-from backend.app.agents.roles import get_raw_data_dir, get_clean_data_dir, get_artifacts_dir
+def get_clean_data_dir(session_id: str):
+    return os.path.join(DATA_ROOT, session_id, "clean")
+
+def get_artifacts_dir(session_id: str):
+    return os.path.join(DATA_ROOT, session_id, "artifacts")
 
 from typing import Optional
 
@@ -38,8 +44,8 @@ class OrchestrateRequest(BaseModel):
 async def orchestrate(request: OrchestrateRequest):
     session_id = request.session_id or str(uuid.uuid4())
     
-    # Register in ledger
-    register_experiment(session_id, request.prompt, request.target_metric)
+    # Register in DB
+    create_experiment(session_id, request.prompt, request.target_metric)
     
     # Dispatch async background task using Celery
     task = run_orchestration_task.delay(session_id, request.prompt, request.target_metric)
@@ -77,9 +83,7 @@ async def stop_execution(session_id: str):
         await redis_client.publish(f"session_{session_id}", json.dumps({"type": "error", "content": "Pipeline execution stopped by user."}))
         await redis_client.aclose()
         
-        # Update registry
-        from backend.app.registry import update_experiment_status
-        update_experiment_status(session_id, "Stopped")
+        update_experiment(session_id, status="stopped")
         
         return {"message": "Execution stopped successfully."}
     except Exception as e:
@@ -138,47 +142,80 @@ async def get_leaderboard(session_id: str):
 
 @app.get("/api/v1/system/config")
 async def get_system_config():
-    """Returns dynamic system configuration and user profile."""
     return {
         "user": "Sanjeev",
         "project": "NeuralFlow Base",
-        "version": "v3.0.0-dynamic",
+        "version": "v4.0.0-langgraph",
         "region": "local-env"
     }
 
 @app.get("/api/v1/infrastructure/metrics")
 async def get_infrastructure_metrics():
-    """Returns real-time system metrics using psutil."""
     cpu_percent = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()
     
     return {
         "cpu_usage": cpu_percent,
         "memory_usage": mem.percent,
-        "active_nodes": 4, # Simulated cluster nodes
-        "cost_rate": round((cpu_percent / 100.0) * 12.5, 2) # Simulated cost calculation
+        "active_nodes": 4, 
+        "cost_rate": round((cpu_percent / 100.0) * 12.5, 2) 
     }
 
 @app.get("/api/v1/experiments")
 async def get_experiments():
-    """Returns all historical experiments from the ledger."""
-    return get_all_experiments()
+    return list_experiments()
+
+@app.delete("/api/v1/experiments/{session_id}")
+async def delete_experiment_endpoint(session_id: str):
+    delete_experiment(session_id)
+    return {"message": "Deleted"}
 
 @app.get("/api/v1/models")
 async def get_models():
-    """Returns all successfully trained models from the ledger."""
-    return get_all_models()
+    return list_models()
 
 @app.get("/api/v1/insights/{session_id}")
 async def get_insights(session_id: str):
-    """Returns dynamic feature importance."""
-    # In a real app, this would parse the model. Here we mock realistic outputs for the UI.
-    return [
-        {"label": "feature_0", "width": "85%"},
-        {"label": "feature_1", "width": "62%"},
-        {"label": "feature_2", "width": "45%"},
-        {"label": "feature_3", "width": "30%"}
-    ]
+    """Returns dynamic feature importance from SHAP."""
+    file_path = os.path.join(get_artifacts_dir(session_id), "explainability.json")
+    if not os.path.exists(file_path):
+        return [
+            {"label": "Waiting for SHAP analysis...", "width": "0%"}
+        ]
+        
+    try:
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            
+        features = data.get("top_features", [])
+        scores = data.get("importance_scores", [])
+        
+        if not features or not scores:
+            return []
+            
+        max_score = max(scores)
+        results = []
+        for i, feat in enumerate(features):
+            width = f"{int((scores[i] / max_score) * 100)}%" if max_score > 0 else "0%"
+            results.append({"label": feat, "width": width})
+            
+        return results
+    except Exception as e:
+        return [{"label": "Error loading insights", "width": "0%"}]
+
+@app.get("/api/v1/recommendation/{session_id}")
+async def get_recommendation(session_id: str):
+    """Returns the LLM recommendation markdown."""
+    file_path = os.path.join(get_artifacts_dir(session_id), "recommendation.md")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Recommendation not found.")
+        
+    try:
+        with open(file_path, "r") as f:
+            content = f.read()
+        return {"markdown": content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- WebSocket ---
 
@@ -191,12 +228,10 @@ async def stream(websocket: WebSocket, session_id: str):
     
     try:
         while True:
-            # Poll for messages from Redis Pub/Sub
             message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
             if message:
                 await websocket.send_text(message["data"])
             else:
-                # Add a small sleep to avoid blocking the event loop entirely
                 await asyncio.sleep(0.1)
     except WebSocketDisconnect:
         print(f"Client disconnected from session {session_id}")

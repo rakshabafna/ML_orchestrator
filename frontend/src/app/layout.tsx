@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TopAppBar, Footer } from "@/components/layout";
+import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "NeuralFlow Orchestrator",
@@ -21,13 +22,15 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen w-screen overflow-x-hidden overflow-y-auto antialiased text-[var(--color-on-background)] bg-[var(--color-background)] flex flex-col">
-        <TopAppBar />
-        <div className="flex flex-1 pt-16 pb-10">
-          <main className="flex-1 w-full p-3 md:p-6 max-w-[1440px] mx-auto flex flex-col min-h-screen">
-            {children}
-          </main>
-        </div>
-        <Footer />
+        <Providers>
+          <TopAppBar />
+          <div className="flex flex-1 pt-16 pb-10">
+            <main className="flex-1 w-full p-3 md:p-6 max-w-[1440px] mx-auto flex flex-col min-h-screen">
+              {children}
+            </main>
+          </div>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

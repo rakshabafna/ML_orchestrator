@@ -1,10 +1,10 @@
 import os
 import json
 from celery import Celery
-from backend.app.agents.workflow import run_workflow
-from backend.app.registry import update_experiment_status
-
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+from backend.app.workflow.graph import run_pipeline
+from backend.app.database import update_experiment
+from backend.app.config import REDIS_URL
+from backend.app.telemetry import publish_phase, publish_event
 
 celery_app = Celery(
     "ml_orchestrator",
@@ -15,20 +15,16 @@ celery_app = Celery(
 @celery_app.task(name="run_orchestration_task")
 def run_orchestration_task(session_id: str, dataset_prompt: str, target_metric: str = "accuracy"):
     """
-    Celery background task to run the ML multi-agent pipeline.
+    Celery background task to run the LangGraph pipeline.
     """
-    import redis
-    r = redis.from_url(REDIS_URL)
-    
-    # Notify that the session has started
-    r.publish(f"session_{session_id}", json.dumps({"type": "status", "content": "Pipeline initialized."}))
+    publish_phase(session_id, "Idle")
+    publish_event(session_id, "System", "STARTED", "Pipeline initialized.")
     
     try:
-        result = run_workflow(session_id, dataset_prompt)
-        r.publish(f"session_{session_id}", json.dumps({"type": "status", "content": "Pipeline completed successfully."}))
-        update_experiment_status(session_id, "Completed")
-        return str(result)
+        run_pipeline(session_id, dataset_prompt, target_metric)
+        return "Success"
     except Exception as e:
-        r.publish(f"session_{session_id}", json.dumps({"type": "error", "content": str(e)}))
-        update_experiment_status(session_id, "Failed")
+        publish_event(session_id, "System", "FAILED", str(e))
+        publish_phase(session_id, "Failed")
+        update_experiment(session_id, status="failed")
         raise e

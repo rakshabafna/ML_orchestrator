@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import ReactMarkdown from "react-markdown";
 
-// Types for dynamic data
 interface LogEntry {
   time: string;
   type: string;
@@ -18,7 +20,7 @@ interface LeaderboardModel {
   top?: boolean;
 }
 
-const PHASES = ["Idle", "Ingestion", "Cleaning", "Feature Eng.", "Training", "Deployment", "Completed"];
+const PHASES = ["Idle", "Ingestion", "Cleaning", "Feature Eng.", "Training", "Tuning", "Evaluation", "Deployment", "Completed"];
 
 export default function HomePage() {
   const [goal, setGoal] = useState("");
@@ -26,8 +28,6 @@ export default function HomePage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentPhase, setCurrentPhase] = useState("Idle");
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardModel[]>([]);
-  const [insights, setInsights] = useState<{label: string, width: string}[]>([]);
   
   // Data Integration States
   const [fileSessionId, setFileSessionId] = useState<string | null>(null);
@@ -55,11 +55,15 @@ export default function HomePage() {
         const data = JSON.parse(event.data);
         if (data.type === "phase") {
           setCurrentPhase(data.content);
-          if (data.content === "Completed") {
+          if (data.content === "Completed" || data.content === "Failed") {
             setIsExecuting(false);
-            fetchLeaderboard(sessionId);
-            fetchInsights(sessionId);
           }
+        } else if (data.type === "node_event") {
+            setLogs(prev => [...prev, {
+              time: new Date(data.timestamp).toLocaleTimeString('en-US', { hour12: false }),
+              type: data.status,
+              msg: `[${data.node}] ${data.message}`
+            }]);
         } else if (data.type === "token") {
           setLogs(prev => [...prev, {
             time: new Date().toLocaleTimeString('en-US', { hour12: false }),
@@ -77,37 +81,55 @@ export default function HomePage() {
     };
   }, [sessionId]);
 
-  const fetchLeaderboard = async (sid: string) => {
-    try {
-      const res = await fetch(`http://localhost:8000/api/v1/leaderboard/${sid}`);
-      if (res.ok) {
-        const data = await res.json();
-        // Format the backend data to match our UI Model interface
-        const formatted = data.map((d: any, i: number) => ({
-          rank: i + 1,
-          name: d.model_name || "Unknown Model",
-          trial: `Trial 00${i+1}`,
-          score: (d.score || 0).toFixed(3),
-          top: i === 0
-        }));
-        setLeaderboard(formatted);
-      }
-    } catch (e) {
-      console.error("Failed to fetch leaderboard", e);
-    }
-  };
+  // React Query for Leaderboard
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ['leaderboard', sessionId],
+    queryFn: async () => {
+      if (!sessionId) return [];
+      const res = await fetch(`http://localhost:8000/api/v1/leaderboard/${sessionId}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.map((d: any, i: number) => ({
+        rank: i + 1,
+        name: d.model_name || "Unknown Model",
+        trial: `Trial 00${i+1}`,
+        score: (d.score || 0).toFixed(4),
+        rawScore: d.score || 0,
+        top: i === 0
+      }));
+    },
+    enabled: currentPhase === "Completed" && !!sessionId,
+  });
 
-  const fetchInsights = async (sid: string) => {
-    try {
-      const res = await fetch(`http://localhost:8000/api/v1/insights/${sid}`);
-      if (res.ok) {
-        const data = await res.json();
-        setInsights(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch insights", e);
-    }
-  };
+  // React Query for Insights
+  const { data: insights = [] } = useQuery({
+    queryKey: ['insights', sessionId],
+    queryFn: async () => {
+      if (!sessionId) return [];
+      const res = await fetch(`http://localhost:8000/api/v1/insights/${sessionId}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      // Format for Recharts
+      return data.map((d: any) => ({
+        name: d.label,
+        value: parseFloat(d.width.replace('%', ''))
+      }));
+    },
+    enabled: currentPhase === "Completed" && !!sessionId,
+  });
+
+  // React Query for Recommendation
+  const { data: recommendation } = useQuery({
+    queryKey: ['recommendation', sessionId],
+    queryFn: async () => {
+      if (!sessionId) return null;
+      const res = await fetch(`http://localhost:8000/api/v1/recommendation/${sessionId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.markdown;
+    },
+    enabled: currentPhase === "Completed" && !!sessionId,
+  });
 
   const handleExecute = async () => {
     if (!goal.trim() || isExecuting) return;
@@ -115,8 +137,6 @@ export default function HomePage() {
     setIsExecuting(true);
     setLogs([{ time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: "INFO", msg: `Initializing execution for goal: "${goal}"` }]);
     setCurrentPhase("Ingestion");
-    setLeaderboard([]);
-    setInsights([]);
     
     try {
       const res = await fetch("http://localhost:8000/api/v1/orchestrate", {
@@ -133,9 +153,9 @@ export default function HomePage() {
         setSessionId(data.session_id);
       }
     } catch (error) {
-      setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: "WARN", msg: "Failed to connect to orchestrator backend." }]);
+      setLogs(prev => [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: "FAILED", msg: "Failed to connect to orchestrator backend." }]);
       setIsExecuting(false);
-      setCurrentPhase("Idle");
+      setCurrentPhase("Failed");
     }
   };
 
@@ -208,7 +228,7 @@ export default function HomePage() {
             Orchestrate Intelligence
           </h1>
           <p className="text-base text-[var(--color-on-surface-variant)] mb-8 leading-6">
-            Define your objective. NeuralFlow handles the feature engineering, model selection, and deployment automatically.
+            Define your objective. NeuralFlow handles the feature engineering, model selection, tuning, and deployment automatically.
           </p>
           <div className="w-full bg-[var(--color-surface-container-low)] rounded-2xl p-2 flex flex-col md:flex-row items-center gap-2 glow-focus transition-all duration-300">
             <div className="flex-grow flex items-center px-4 py-3 w-full">
@@ -288,7 +308,7 @@ export default function HomePage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-primary)]"></span>
               </span>
             )}
-            {currentPhase === "Completed" ? "Completed" : isExecuting ? "Running" : "Idle"}
+            {currentPhase === "Completed" ? "Completed" : currentPhase === "Failed" ? "Failed" : isExecuting ? "Running" : "Idle"}
           </div>
         </div>
         {/* Pipeline Path Visualization */}
@@ -298,39 +318,45 @@ export default function HomePage() {
           {/* Progress Bar (Dynamic) */}
           <div 
             className="absolute top-1/2 left-12 h-0.5 bg-[var(--color-primary)] -translate-y-1/2 z-0 transition-all duration-1000"
-            style={{ width: `${Math.max(0, (PHASES.indexOf(currentPhase) - 1) * 33.3)}%` }}
+            style={{ width: `${Math.max(0, (PHASES.indexOf(currentPhase) - 1) * 14)}%` }}
           ></div>
           
           {/* Nodes */}
           {[
             { icon: "database", label: "Ingestion" },
             { icon: "transform", label: "Cleaning" },
+            { icon: "analytics", label: "Feature Eng." },
             { icon: "psychology", label: "Training" },
+            { icon: "tune", label: "Tuning" },
+            { icon: "insights", label: "Evaluation" },
             { icon: "rocket_launch", label: "Deployment" },
           ].map((node, i) => {
-            const phaseIndex = PHASES.indexOf(node.label === "Cleaning" ? "Cleaning" : node.label === "Ingestion" ? "Ingestion" : node.label === "Training" ? "Training" : "Deployment");
+            const phaseIndex = PHASES.indexOf(node.label);
             const currentPhaseIndex = PHASES.indexOf(currentPhase);
             
             const isCompleted = currentPhaseIndex > phaseIndex || currentPhase === "Completed";
-            const isActive = currentPhaseIndex === phaseIndex && currentPhase !== "Completed";
+            const isActive = currentPhaseIndex === phaseIndex && currentPhase !== "Completed" && currentPhase !== "Failed";
             const isPending = currentPhaseIndex < phaseIndex;
+            const isFailed = currentPhase === "Failed" && currentPhaseIndex === phaseIndex;
 
             return (
               <div key={i} className={`relative z-10 flex flex-col items-center gap-2 ${isPending ? "opacity-50" : ""}`}>
                 <div
                   className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md ${
-                    isCompleted
+                    isFailed
+                      ? "bg-[var(--color-error)] text-[var(--color-on-error)]"
+                      : isCompleted
                       ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
                       : isActive
                       ? "bg-[var(--color-surface-container-high)] border-2 border-[var(--color-primary)] text-[var(--color-primary)] animate-pulse"
                       : "bg-[var(--color-surface-container-low)] border border-[var(--color-outline-variant)] text-[var(--color-outline)]"
                   }`}
                 >
-                  <span className="material-symbols-outlined">{node.icon}</span>
+                  <span className="material-symbols-outlined">{isFailed ? "error" : node.icon}</span>
                 </div>
                 <span
-                  className={`text-[13px] tracking-[0.05em] font-medium ${
-                    isActive ? "text-[var(--color-primary)] font-bold" : isPending ? "text-[var(--color-outline)]" : "text-[var(--color-on-surface)]"
+                  className={`text-[13px] tracking-[0.05em] font-medium whitespace-nowrap ${
+                    isActive ? "text-[var(--color-primary)] font-bold" : isFailed ? "text-[var(--color-error)] font-bold" : isPending ? "text-[var(--color-outline)]" : "text-[var(--color-on-surface)]"
                   }`}
                 >
                   {node.label}
@@ -344,7 +370,7 @@ export default function HomePage() {
       {/* ── Asymmetric Content Grid: Logs & Insights ── */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start flex-1 min-h-0">
         {/* Live Execution Logs (Terminal) */}
-        <div className="lg:col-span-7 bg-[var(--color-inverse-surface)] rounded-xl shadow-ambient overflow-hidden flex flex-col h-full min-h-[200px]">
+        <div className="lg:col-span-6 bg-[var(--color-inverse-surface)] rounded-xl shadow-ambient overflow-hidden flex flex-col h-full min-h-[300px]">
           <div className="px-4 py-3 border-b border-[var(--color-outline-variant)]/10 flex justify-between items-center bg-[var(--color-on-background)]/5">
             <h3 className="text-[var(--color-inverse-primary)] text-base font-semibold flex items-center gap-2">
               <span className="material-symbols-outlined text-[var(--color-inverse-primary)]/70">terminal</span>
@@ -361,20 +387,20 @@ export default function HomePage() {
               <div className="text-[var(--color-outline-variant)] text-center mt-10">Awaiting execution command...</div>
             )}
             {logs.map((log, i) => (
-              <div key={i} className={`flex gap-4 ${log.running ? "animate-pulse" : ""}`}>
-                <span className="text-[var(--color-outline)]">{log.time}</span>
+              <div key={i} className={`flex gap-4`}>
+                <span className="text-[var(--color-outline)] shrink-0">{log.time}</span>
                 <span
-                  className={
-                    log.type === "WARN" || log.type === "ERROR"
+                  className={`shrink-0 ${
+                    log.type === "FAILED" || log.type === "ERROR"
                       ? "text-[var(--color-error-container)]"
-                      : log.type === "RUN" || log.type === "INFO"
+                      : log.type === "RUNNING" || log.type === "STARTED" || log.type === "INFO"
                       ? "text-[var(--color-inverse-primary)]"
                       : "text-[var(--color-on-primary)]"
-                  }
+                  }`}
                 >
                   [{log.type}]
                 </span>
-                <span>
+                <span className="break-words">
                   {log.msg}
                 </span>
               </div>
@@ -384,72 +410,68 @@ export default function HomePage() {
         </div>
 
         {/* Insights Column */}
-        <div className="lg:col-span-5 flex flex-col gap-3 h-full min-h-0">
-          {/* Leaderboard Card */}
-          <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 hidden sm:block">
-            <h3 className="text-lg font-semibold text-[var(--color-on-background)] mb-2">Candidate Models</h3>
-            <div className="space-y-2">
+        <div className="lg:col-span-6 flex flex-col gap-3 h-full min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+          
+          {/* Recommendation Node (LLM output) */}
+          {recommendation && (
+            <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 border border-[var(--color-primary)]/20 bg-gradient-to-br from-[var(--color-surface-container-lowest)] to-[var(--color-primary-container)]/10">
+              <h3 className="text-lg font-semibold text-[var(--color-on-background)] mb-3 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[var(--color-primary)]">psychology</span>
+                AI Architect Recommendation
+              </h3>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-[var(--color-on-surface-variant)]">
+                <ReactMarkdown>{recommendation}</ReactMarkdown>
+              </div>
+            </div>
+          )}
+
+          {/* Leaderboard Card with Recharts */}
+          <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 hidden sm:flex sm:flex-col min-h-[300px]">
+            <h3 className="text-lg font-semibold text-[var(--color-on-background)] mb-2">Candidate Models Leaderboard</h3>
+            <div className="flex-grow">
               {leaderboard.length === 0 ? (
-                <div className="text-[13px] text-[var(--color-on-surface-variant)] p-4 text-center border border-dashed border-[var(--color-outline-variant)]/50 rounded-xl">
+                <div className="text-[13px] text-[var(--color-on-surface-variant)] h-full w-full flex items-center justify-center border border-dashed border-[var(--color-outline-variant)]/50 rounded-xl">
                   {isExecuting ? "Evaluating candidates..." : "No models evaluated yet."}
                 </div>
               ) : (
-                leaderboard.map((model) => (
-                  <div
-                    key={model.rank}
-                    className={`flex items-center justify-between p-3 rounded-xl ${
-                      model.top
-                        ? "bg-[var(--color-primary-container)]/10 border border-[var(--color-primary)]/20"
-                        : "hover:bg-[var(--color-surface-container)] transition-colors"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded flex items-center justify-center text-[13px] tracking-[0.05em] font-bold ${
-                          model.top
-                            ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                            : "bg-[var(--color-surface-container-high)] text-[var(--color-on-surface-variant)]"
-                        }`}
-                      >
-                        {model.rank}
-                      </div>
-                      <div>
-                        <div className={`text-base font-semibold text-[var(--color-on-background)]`}>
-                          {model.name}
-                        </div>
-                        <div className="text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)]">{model.trial}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-lg font-semibold ${model.top ? "text-[var(--color-primary)]" : "text-[var(--color-on-surface)]"}`}>
-                        {model.score}
-                      </div>
-                      {model.top && <div className="text-[13px] tracking-[0.05em] text-[var(--color-outline)]">Score</div>}
-                    </div>
-                  </div>
-                ))
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={leaderboard.slice(0, 5)} layout="vertical" margin={{ top: 5, right: 30, left: 50, bottom: 5 }}>
+                    <XAxis type="number" domain={[0, 1]} tick={{ fill: 'var(--color-on-surface-variant)' }} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--color-on-surface-variant)', fontSize: 12 }} />
+                    <Tooltip cursor={{fill: 'var(--color-surface-container-high)'}} contentStyle={{ backgroundColor: 'var(--color-surface-container)', border: 'none', borderRadius: '8px', color: 'var(--color-on-surface)' }} />
+                    <Bar dataKey="rawScore" radius={[0, 4, 4, 0]}>
+                      {
+                        leaderboard.slice(0, 5).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--color-primary)' : 'var(--color-primary-container)'} />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
-          {/* Feature Importance Mini-Chart */}
-          <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 flex-1 flex flex-col justify-between min-h-[120px]">
-            <h3 className="text-sm font-semibold text-[var(--color-on-background)] mb-2">Key Drivers</h3>
-            <div className="space-y-2 w-full mt-auto">
+
+          {/* Feature Importance Recharts Mini-Chart */}
+          <div className="bg-[var(--color-surface-container-lowest)] rounded-xl shadow-ambient p-4 shrink-0 flex flex-col justify-between min-h-[250px]">
+            <h3 className="text-sm font-semibold text-[var(--color-on-background)] mb-2 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-tertiary)]">waterfall_chart</span>
+              Key Drivers (SHAP Values)
+            </h3>
+            <div className="flex-grow w-full mt-auto">
               {insights.length === 0 ? (
-                <div className="text-[13px] text-[var(--color-on-surface-variant)] p-2 text-center">
+                <div className="text-[13px] text-[var(--color-on-surface-variant)] p-2 h-full flex items-center justify-center">
                   Awaiting feature extraction...
                 </div>
               ) : (
-                insights.map((feature) => (
-                  <div key={feature.label} className="flex items-center gap-2">
-                    <span className="w-24 text-[13px] tracking-[0.05em] text-[var(--color-on-surface-variant)] truncate font-[var(--font-geist)]">
-                      {feature.label}
-                    </span>
-                    <div className="flex-grow h-2 bg-[var(--color-surface-container-high)] rounded-full overflow-hidden">
-                      <div className="h-full bg-[var(--color-primary)] rounded-full transition-all duration-1000" style={{ width: feature.width }}></div>
-                    </div>
-                  </div>
-                ))
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={insights} layout="vertical" margin={{ top: 0, right: 10, left: 30, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'var(--color-on-surface-variant)', fontSize: 11 }} />
+                    <Tooltip cursor={{fill: 'var(--color-surface-container-high)'}} contentStyle={{ backgroundColor: 'var(--color-surface-container)', border: 'none', borderRadius: '8px', color: 'var(--color-on-surface)' }} />
+                    <Bar dataKey="value" fill="var(--color-tertiary)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
